@@ -5,23 +5,20 @@ struct BurnModel {
     static let tierNames = ["대기", "약", "중", "강", "폭주"]
     /// 한 번에 들어온 양이 대략 이 시간에 걸쳐 탄다.
     static let drainSeconds = 15.0
-    /// 단계가 시작되는 속도(초당 토큰, 캐시 읽기 제외 기준). 분당 1.5만·5만·12만.
+    /// 단계가 시작되는 속도(초당 토큰). 분당 1.5만·5만·12만.
     static let tierRates: [Double] = [0, 0, 250, 833, 2000]
     /// 남은 양이 적을 때의 최소 속도. 끝자락이 한없이 늘어지지 않게 한다.
     static let floorRate = 30.0
-    /// 캐시 읽기를 포함하면 양이 약 40배가 되어 기준도 그만큼 올린다(2026-11 사용 기록 3일치 비율).
-    static let cacheScale = 40.0
 
-    var scale = 1.0
     private(set) var pending = 0.0
     /// 화면 숫자. 동전이 불에 들어갈 때 오른다.
     var shown = 0.0
 
     mutating func add(_ tokens: Double) { pending += max(0, tokens) }
     /// 지금 타고 있는 속도(초당 토큰).
-    var rate: Double { pending <= 0 ? 0 : max(pending / Self.drainSeconds, Self.floorRate * scale) }
+    var rate: Double { pending <= 0 ? 0 : max(pending / Self.drainSeconds, Self.floorRate) }
     var tier: Int {
-        let value = rate / scale
+        let value = rate
         guard value > 0 else { return 0 }
         var tier = 1
         for index in 2..<Self.tierRates.count where value >= Self.tierRates[index] { tier = index }

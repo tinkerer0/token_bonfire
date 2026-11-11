@@ -24,12 +24,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var observers: [NSObjectProtocol] = []
     private let defaults = UserDefaults.standard
     // 설정
-    private var scale = 2
+    private var scale = 1.5
     private var sources = Set(UsageSource.allCases)
-    private var includeCacheRead = false
     private var showNumber = true
 
-    private var size: NSSize { NSSize(width: Art.width * scale, height: Art.height * scale) }
+    private static let scaleRange = 0.75...3.0, scaleStep = 0.25
+    private var size: NSSize { NSSize(width: (Double(Art.width) * scale).rounded(), height: (Double(Art.height) * scale).rounded()) }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
@@ -49,7 +49,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         renderer.showNumber = showNumber
-        model.scale = includeCacheRead ? BurnModel.cacheScale : 1
         view = BonfireView(frame: NSRect(origin: .zero, size: size))
         view.menuProvider = { [weak self] in self?.makeMenu() ?? NSMenu() }
         view.onMoveEnded = { [weak self] in self?.keepOnScreen(); self?.savePosition() }
@@ -84,10 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func loadSettings() {
-        let saved = defaults.integer(forKey: "scale")
-        if (1...3).contains(saved) { scale = saved }
+        let saved = defaults.double(forKey: "scaleFactor")
+        if Self.scaleRange.contains(saved) { scale = saved }
         if let names = defaults.stringArray(forKey: "sources") { sources = Set(names.compactMap(UsageSource.init(rawValue:))) }
-        includeCacheRead = defaults.bool(forKey: "includeCacheRead")
         if defaults.object(forKey: "showNumber") != nil { showNumber = defaults.bool(forKey: "showNumber") }
     }
 
@@ -103,7 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.polling = false
                 var tokens = 0
                 for (source, delta) in deltas where self.sources.contains(source) {
-                    tokens += delta.tokens(includingCacheRead: self.includeCacheRead)
+                    tokens += delta.fresh
                 }
                 if tokens > 0 {
                     self.model.add(Double(tokens))
@@ -179,17 +177,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if model.rate > 0 { add("지금 분당 약 \(BurnModel.format(model.rate * 60))", nil) }
         menu.addItem(.separator())
         add("초기화", #selector(resetCount))
-        submenu("크기") { sub in
-            for (value, title) in [(1, "작게"), (2, "보통"), (3, "크게")] {
-                add(title, #selector(resize(_:)), to: sub, on: scale == value, tag: value)
-            }
-        }
+        menu.addItem(sizeItem())
         submenu("집계 대상") { sub in
             for (index, source) in UsageSource.allCases.enumerated() {
                 add(source.title, #selector(toggleSource(_:)), to: sub, on: sources.contains(source), tag: index)
             }
         }
-        add("캐시 읽기 포함", #selector(toggleCacheRead), on: includeCacheRead)
         add("숫자 표시", #selector(toggleNumber), on: showNumber)
         add("로그인 시 실행", #selector(toggleLoginItem), on: SMAppService.mainApp.status == .enabled)
         submenu("미리보기") { sub in
@@ -213,10 +206,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         queue.async { [tailer] in tailer.notBefore = now }
         updateStatus()
     }
-    @objc private func resize(_ item: NSMenuItem) {
-        guard (1...3).contains(item.tag) else { return }
-        scale = item.tag
-        defaults.set(scale, forKey: "scale")
+    /// 메뉴 안의 크기 막대. 0.25배 간격으로 끌면 바로 창 크기가 바뀐다.
+    private func sizeItem() -> NSMenuItem {
+        let box = NSView(frame: NSRect(x: 0, y: 0, width: 230, height: 30))
+        let label = NSTextField(labelWithString: "크기")
+        label.font = .menuFont(ofSize: 0)
+        label.frame = NSRect(x: 14, y: 6, width: 36, height: 18)
+        let steps = Int(((Self.scaleRange.upperBound - Self.scaleRange.lowerBound) / Self.scaleStep).rounded()) + 1
+        let slider = NSSlider(value: scale, minValue: Self.scaleRange.lowerBound, maxValue: Self.scaleRange.upperBound,
+                              target: self, action: #selector(resize(_:)))
+        slider.numberOfTickMarks = steps
+        slider.allowsTickMarkValuesOnly = true
+        slider.isContinuous = true
+        slider.controlSize = .small
+        slider.frame = NSRect(x: 54, y: 4, width: 162, height: 22)
+        slider.setAccessibilityLabel("크기")
+        box.addSubview(label)
+        box.addSubview(slider)
+        let item = NSMenuItem()
+        item.view = box
+        return item
+    }
+
+    @objc private func resize(_ slider: NSSlider) {
+        let next = (slider.doubleValue / Self.scaleStep).rounded() * Self.scaleStep
+        guard Self.scaleRange.contains(next), next != scale else { return }
+        scale = next
+        defaults.set(scale, forKey: "scaleFactor")
         // 장작 바닥 가운데를 그대로 두고 크기만 바꾼다.
         let old = panel.frame
         panel.setFrame(NSRect(x: old.midX - size.width / 2, y: old.minY, width: size.width, height: size.height), display: true)
@@ -228,11 +244,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let source = UsageSource.allCases[item.tag]
         if sources.contains(source) { sources.remove(source) } else { sources.insert(source) }
         defaults.set(sources.map(\.rawValue).sorted(), forKey: "sources")
-    }
-    @objc private func toggleCacheRead() {
-        includeCacheRead.toggle()
-        defaults.set(includeCacheRead, forKey: "includeCacheRead")
-        model.scale = includeCacheRead ? BurnModel.cacheScale : 1
     }
     @objc private func toggleNumber() {
         showNumber.toggle()

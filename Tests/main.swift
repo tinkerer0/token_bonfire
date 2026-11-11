@@ -115,10 +115,6 @@ do {
     while model.pending > 0 && steps < 100_000 { out += model.drain(1.0 / 30); steps += 1 }
     check(abs(out - 63_000) < 1e-6, "풀려 나간 합 \(out)")
     check(Double(steps) / 30 < 120, "2분 안에 다 타야 함, 실제 \(Double(steps) / 30)초")
-    var cached = BurnModel()
-    cached.scale = BurnModel.cacheScale
-    cached.add(60_000)
-    check(cached.tier == 1, "캐시 포함 기준에서는 6만이 약 단계, 실제 \(cached.tier)")
 }
 
 // 그림 합성: 들어온 토큰이 빠짐없이 숫자에 더해지는지

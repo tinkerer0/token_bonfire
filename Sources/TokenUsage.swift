@@ -1,6 +1,6 @@
 import Foundation
 
-/// 새로 쓴 토큰 수. fresh = 입력 + 캐시 쓰기 + 출력, cacheRead = 캐시에서 다시 읽은 입력.
+/// 새로 쓴 토큰 수. fresh = 입력 + 캐시 쓰기 + 출력(앱이 세는 양), cacheRead = 캐시에서 다시 읽은 입력(세지 않고 --scan 출력에만 쓴다).
 struct UsageDelta: Equatable {
     var fresh = 0
     var cacheRead = 0
@@ -8,7 +8,6 @@ struct UsageDelta: Equatable {
     static func + (a: UsageDelta, b: UsageDelta) -> UsageDelta {
         UsageDelta(fresh: a.fresh + b.fresh, cacheRead: a.cacheRead + b.cacheRead)
     }
-    func tokens(includingCacheRead: Bool) -> Int { fresh + (includingCacheRead ? cacheRead : 0) }
 }
 
 enum UsageSource: String, CaseIterable {
