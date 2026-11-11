@@ -99,6 +99,75 @@ if arguments.contains("--scan") {
         }
     }
     print("frames \(index) size \(width)x\(height)")
+} else if let folder = value(after: "--tour") {
+    // 목표와 불 색을 차례로 보여 주는 낱장 PNG를 저장한다: --tour <폴더> [--zoom 6] [--english]
+    let english = arguments.contains("--english")
+    let zoom = min(6, max(1, Int(value(after: "--zoom") ?? "") ?? 6))
+    let renderer = try BonfireRenderer(atlas: AtlasStore(resources: resourcesURL()))
+    try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+    let width = Art.width * zoom, height = Art.height * zoom
+    guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: Art.space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { exit(1) }
+    context.interpolationQuality = .none
+    var index = 0
+    let dt = 1 / Art.fps
+    func save(number: String, gold: Bool, title: String, detail: String) {
+        guard let image = renderer.image(number: number, gold: gold) else { exit(1) }
+        context.setFillColor(CGColor(red: 0.043, green: 0.043, blue: 0.051, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        NSAttributedString(string: title, attributes: [
+            .font: NSFont.systemFont(ofSize: CGFloat(8 * zoom), weight: .semibold),
+            .foregroundColor: NSColor(white: 1, alpha: 0.9),
+        ]).draw(at: NSPoint(x: CGFloat(8 * zoom), y: CGFloat(height) - CGFloat(17 * zoom)))
+        NSAttributedString(string: detail, attributes: [
+            .font: NSFont.systemFont(ofSize: CGFloat(5.5 * Double(zoom)), weight: .regular),
+            .foregroundColor: NSColor(white: 1, alpha: 0.6),
+        ]).draw(at: NSPoint(x: CGFloat(8 * zoom), y: CGFloat(height) - CGFloat(26 * zoom)))
+        NSGraphicsContext.restoreGraphicsState()
+        let url = URL(fileURLWithPath: folder).appendingPathComponent(String(format: "frame-%04d.png", index))
+        guard let frame = context.makeImage(),
+              let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else { exit(1) }
+        CGImageDestinationAddImage(destination, frame, nil)
+        guard CGImageDestinationFinalize(destination) else { exit(1) }
+        index += 1
+    }
+    // 1) 목표: 현재/목표로 세다가 채운다
+    let goal = BurnGoal(target: 5_000_000, hours: nil)!
+    var shown = 4_550_000.0, frames = 0
+    while !goal.reached(shown), frames < Int(8 * Art.fps) {
+        shown += renderer.step(dt: dt, tier: 3, released: 110_000 * dt)
+        save(number: goal.text(shown: min(shown, 4_999_999)), gold: false,
+             title: english ? "Set a token goal" : "토큰 목표 설정",
+             detail: english ? "The number reads current / goal" : "숫자가 현재 / 목표로 표시됩니다")
+        frames += 1
+    }
+    shown = max(shown, goal.target)
+    // 2) 달성: 불이 크게 타고 숫자가 깜빡인 뒤 금색
+    for frame in 0..<Int(4.5 * Art.fps) {
+        let time = Double(frame) * dt
+        shown += renderer.step(dt: dt, tier: 4, released: 30_000 * dt)
+        let hidden = time < 3 && Int(time * 4) % 2 == 1
+        save(number: hidden ? "" : goal.text(shown: shown), gold: true,
+             title: english ? "Goal reached" : "목표 달성",
+             detail: english ? "The fire flares, the number turns gold" : "불이 타오르고 숫자가 금색으로 바뀝니다")
+    }
+    // 3) 불 색
+    renderer.clear()
+    shown = 128_400
+    let colorNames: [FireColor: String] = [.orange: "Orange", .blue: "Blue", .green: "Green", .purple: "Purple"]
+    for color in [FireColor.blue, .green, .purple, .orange] {
+        renderer.atlas.color = color
+        for _ in 0..<Int(1.8 * Art.fps) {
+            shown += renderer.step(dt: dt, tier: 2, released: 600 * dt)
+            save(number: BurnModel.format(shown), gold: false,
+                 title: english ? "Fire color" : "불 색 선택",
+                 detail: english ? colorNames[color]! : color.title)
+        }
+    }
+    print("frames \(index) size \(width)x\(height)")
 } else {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)
