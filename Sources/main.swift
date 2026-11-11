@@ -57,6 +57,43 @@ if arguments.contains("--scan") {
     CGImageDestinationAddImage(destination, scaled, nil)
     guard CGImageDestinationFinalize(destination) else { exit(1) }
     print("tier \(tokens == nil ? tier : model.tier) fireLevel \(renderer.fireLevel) coins \(renderer.coins.count) shown \(BurnModel.format(model.shown))")
+} else if let folder = value(after: "--demo") {
+    // 대기부터 폭주까지 단계마다 몇 초씩 돌려 낱장 PNG로 저장한다: --demo <폴더> [--seconds 2] [--zoom 3]
+    let perTier = Double(value(after: "--seconds") ?? "") ?? 2
+    let zoom = min(6, max(1, Int(value(after: "--zoom") ?? "") ?? 3))
+    let renderer = try BonfireRenderer(atlas: AtlasStore(resources: resourcesURL()))
+    try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+    let width = Art.width * zoom, height = Art.height * zoom
+    guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: Art.space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { exit(1) }
+    context.interpolationQuality = .none
+    let burnPerSecond: [Double] = [0, 150, 500, 1400, 4000]
+    var shown = 0.0, index = 0
+    for tier in 0..<BurnModel.tierNames.count {
+        for _ in 0..<Int(perTier * Art.fps) {
+            let dt = 1 / Art.fps
+            shown += renderer.step(dt: dt, tier: tier, released: burnPerSecond[tier] * dt)
+            guard let image = renderer.image(number: BurnModel.format(shown)) else { exit(1) }
+            context.setFillColor(CGColor(red: 0.043, green: 0.043, blue: 0.051, alpha: 1))
+            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+            let label = NSAttributedString(string: BurnModel.tierNames[tier], attributes: [
+                .font: NSFont.systemFont(ofSize: CGFloat(7 * zoom), weight: .semibold),
+                .foregroundColor: NSColor(white: 1, alpha: 0.72),
+            ])
+            label.draw(at: NSPoint(x: CGFloat(8 * zoom), y: CGFloat(height) - CGFloat(16 * zoom)))
+            NSGraphicsContext.restoreGraphicsState()
+            let url = URL(fileURLWithPath: folder).appendingPathComponent(String(format: "frame-%04d.png", index))
+            guard let frame = context.makeImage(),
+                  let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else { exit(1) }
+            CGImageDestinationAddImage(destination, frame, nil)
+            guard CGImageDestinationFinalize(destination) else { exit(1) }
+            index += 1
+        }
+    }
+    print("frames \(index) size \(width)x\(height)")
 } else {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)

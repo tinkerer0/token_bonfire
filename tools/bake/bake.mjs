@@ -1,4 +1,4 @@
-// 확정안(X자 장작 + 원래 불, 주황 고정)을 스프라이트 시트로 굽는다.
+// Token Bonfire의 불·동전·숫자 그림을 스프라이트 시트로 굽는다.
 // 실행: node tools/bake/bake.mjs → Resources/ 아래에 PNG·JSON 생성. 시트는 가로 한 줄이고 JSON은 {width,height,durations}다.
 // tools/bake/pixelfx 에 pixelfx(github.com/tinkerer0/pixelfx, a841596)가 있어야 한다.
 import { deflateSync, inflateSync } from "node:zlib";
@@ -11,7 +11,7 @@ const OUT = new URL("../../Resources/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
 const W = 160, H = 180, OX = 80, OY = 148, GLOW = 0.6, FPS = 30, FRAMES = 90;
-// 소모 속도 5단계의 불 높이·굵기(시안 확정값). 그 사이와 위(동전이 들어갈 때 솟는 몫)를 촘촘히 굽는다.
+// 소모 속도 5단계의 불 높이·굵기. 그 사이와 위(동전이 들어갈 때 솟는 몫)를 촘촘히 굽는다.
 const TIER_H = [7, 14, 22, 31, 42], TIER_G = [1, 1.1, 1.2, 1.35, 1.5];
 const LEVEL_H = [7, 10.5, 14, 18, 22, 26.5, 31, 36.5, 42, 48, 55];
 const girthAt = (h) => {
@@ -96,7 +96,7 @@ for (const [file, ink, outline] of [["digits", "#f4efe6", "#0b0b0d"]]) {
 
 // ---- 설명서 ----
 writeFileSync(OUT + "manifest.json", JSON.stringify({
-  note: "토큰 태우기 확정안. 불은 pixelfx Campfire(MIT)를 구운 것. 좌표는 불 칸(160x180) 기준, origin이 장작 바닥 가운데.",
+  note: "Token Bonfire 그림 규격. 불은 pixelfx Campfire(MIT)로 그렸다. 좌표는 불 칸(160x180) 기준, origin이 장작 바닥 가운데.",
   frame: { width: W, height: H, originX: OX, originY: OY, fps: FPS, frames: FRAMES },
   fireLevels: fireFiles.map(({ name, height, girth }) => ({ atlas: name + "-atlas.png", height, girth })),
   tiers: ["대기", "약", "중", "강", "폭주"].map((name, i) => ({ name, level: LEVEL_H.indexOf(TIER_H[i]), coinsPerSecond: [0, 1, 3, 7, 16][i], coinSpreadX: [14, 16, 18, 22, 26][i] })),

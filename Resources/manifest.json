@@ -1,5 +1,5 @@
 {
- "note": "토큰 태우기 확정안. 불은 pixelfx Campfire(MIT)를 구운 것. 좌표는 불 칸(160x180) 기준, origin이 장작 바닥 가운데.",
+ "note": "Token Bonfire 그림 규격. 불은 pixelfx Campfire(MIT)로 그렸다. 좌표는 불 칸(160x180) 기준, origin이 장작 바닥 가운데.",
  "frame": {
   "width": 160,
   "height": 180,

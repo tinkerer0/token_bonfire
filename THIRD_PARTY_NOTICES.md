@@ -2,7 +2,7 @@
 
 ## pixelfx
 
-`Resources/`의 불·동전·숫자 그림은 [pixelfx](https://github.com/tinkerer0/pixelfx)(커밋 a841596)의 Campfire 이펙트, 동전 그리기, big 글꼴을 `tools/bake/bake.mjs`로 구운 결과입니다. `tools/bake/campfire_wide.js`는 pixelfx의 `src/fx/fire/campfire.js`에 불 혀 굵기·벌림 옵션을 더한 사본입니다. pixelfx의 불 그리기는 Sprite Fusion의 공개 픽셀 아트 VFX(https://www.spritefusion.com/pixel-art-vfx)를 고쳐 쓴 것입니다.
+`Resources/`의 불·동전·숫자 그림은 [pixelfx](https://github.com/tinkerer0/pixelfx)(커밋 a841596)의 Campfire 이펙트, 동전 그리기, big 글꼴로 그렸습니다(`tools/bake/bake.mjs`). `tools/bake/campfire_wide.js`는 pixelfx의 `src/fx/fire/campfire.js`에 불 혀 굵기·벌림 옵션을 더한 파일입니다. pixelfx의 불 그리기는 Sprite Fusion의 공개 픽셀 아트 VFX(https://www.spritefusion.com/pixel-art-vfx)에 바탕을 둡니다. 아래는 pixelfx의 라이선스입니다.
 
     MIT License
     

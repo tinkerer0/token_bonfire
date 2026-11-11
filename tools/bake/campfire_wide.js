@@ -1,4 +1,4 @@
-// 시안용 사본: pixelfx fx/fire/campfire.js(MIT, pixelfx/LICENSE·NOTICE.md 참조)에 불 혀 굵기 girth·좌우 벌림 spreadX·옆 혀 키 fill 옵션을 더했다.
+// pixelfx fx/fire/campfire.js(MIT, THIRD_PARTY_NOTICES.md 참조)에 불 혀 굵기 girth·좌우 벌림 spreadX·옆 혀 키 fill·장작 더미 pile 옵션을 더한 파일.
 // The tongue, lick, flame-puff, smoke and ember recipe is adapted from Sprite Fusion's open-source fire
 // (https://www.spritefusion.com/pixel-art-vfx/fire), MIT License, Copyright (c) 2026 Hugo Duprez.
 import { Rng, fit, mix, hex, rand, clamp, WHITE } from "./pixelfx/src/core/index.js";
@@ -30,7 +30,7 @@ const LOGS = [
   [-19, 2, 15, -12, 3.4],
   [19, 2, -15, -12, 3.4],
 ];
-// 시안 추가: 장작을 많이 쌓은 더미(낮게 누운 한 쌍 + 원래 X자 + 가파르게 세운 한 쌍)
+// pile 옵션: 장작을 많이 쌓은 더미(낮게 누운 한 쌍 + 원래 X자 + 가파르게 세운 한 쌍)
 const LOGS_MORE = [
   [-25, 2, 9, -6, 3.2],
   [25, 2, -9, -6, 3.2],
