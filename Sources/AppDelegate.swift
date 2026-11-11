@@ -191,7 +191,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 add(name, #selector(showPreview(_:)), to: sub, on: preview == index, tag: index)
             }
         }
-        add("화면 오른쪽 아래로", #selector(resetPosition))
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Token Bonfire 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
@@ -263,10 +262,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     @objc private func showPreview(_ item: NSMenuItem) {
         preview = BurnModel.tierNames.indices.contains(item.tag) ? item.tag : nil
-    }
-    @objc private func resetPosition() {
-        panel.setFrameOrigin(defaultOrigin())
-        savePosition()
     }
 
     // MARK: 위치
