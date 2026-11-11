@@ -146,13 +146,13 @@ if arguments.contains("--scan") {
     }
     shown = max(shown, goal.target)
     // 2) 달성: 불이 크게 타고 숫자가 깜빡인 뒤 금색
-    for frame in 0..<Int(4.5 * Art.fps) {
+    for frame in 0..<Int(5.5 * Art.fps) {
         let time = Double(frame) * dt
         shown += renderer.step(dt: dt, tier: 4, released: 30_000 * dt)
-        let hidden = time < 3 && Int(time * 4) % 2 == 1
+        let hidden = BurnGoal.blinkHidden(since: time, burst: 2.5)
         save(number: hidden ? "" : goal.text(shown: shown), gold: true,
              title: english ? "Goal reached" : "목표 달성",
-             detail: english ? "The fire flares, the number turns gold" : "불이 타오르고 숫자가 금색으로 바뀝니다")
+             detail: english ? "The fire flares, the number blinks in gold" : "불이 타오르고 숫자가 금색으로 깜빡입니다")
     }
     // 3) 불 색
     renderer.clear()

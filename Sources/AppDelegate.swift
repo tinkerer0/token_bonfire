@@ -235,10 +235,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         let dt = min(0.1, max(0, now - lastTick))
         lastTick = now
         let released = model.drain(dt)
-        // 목표를 채운 직후 몇 초는 불이 가장 크게 타고 숫자가 깜빡인다.
+        // 목표를 채운 직후 몇 초는 불이 가장 크게 타고, 숫자는 목표를 넘긴 동안 계속 깜빡인다.
         var hidden = false, flare: Int?
-        if let at = goalReachedAt {
-            if now - at < Self.blinkSeconds { hidden = Int((now - at) * 4) % 2 == 1; flare = 4 } else { goalReachedAt = nil }
+        if goalReached {
+            let since = goalReachedAt.map { now - $0 } ?? Self.blinkSeconds + now
+            hidden = BurnGoal.blinkHidden(since: since, burst: Self.blinkSeconds)
+            if since < Self.blinkSeconds { flare = 4 }
         }
         model.shown += renderer.step(dt: dt, tier: preview ?? flare ?? model.tier, released: released)
         updateStatus()

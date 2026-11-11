@@ -187,6 +187,8 @@ do {
     check(!goal.expired(start: start, now: start.addingTimeInterval(5 * 3600 - 1)), "정한 시간 전에는 이어 셈")
     check(goal.expired(start: start, now: start.addingTimeInterval(5 * 3600)), "정한 시간이 지나면 다시 셈")
     check(goal.expired(start: start, now: start.addingTimeInterval(-60)), "시계가 뒤로 가면 다시 셈")
+    check(!BurnGoal.blinkHidden(since: 0.1, burst: 6) && BurnGoal.blinkHidden(since: 0.3, burst: 6), "달성 직후 빠른 깜빡임")
+    check(!BurnGoal.blinkHidden(since: 100.2, burst: 6) && BurnGoal.blinkHidden(since: 100.8, burst: 6), "달성 뒤 계속 깜빡임")
     check(!BurnGoal(target: 5_000_000, hours: nil)!.expired(start: start, now: start.addingTimeInterval(1e7)), "시간을 안 정하면 계속 셈")
     check(BurnGoal(target: 5_000_000, hours: 0.5) == nil && BurnGoal(target: 5_000_000, hours: 200) == nil, "시간 범위 밖은 거절")
     if let atlas = try? AtlasStore(resources: URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "Resources")) {

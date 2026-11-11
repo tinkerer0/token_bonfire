@@ -94,6 +94,10 @@ struct BurnGoal: Equatable {
         self.target = target
         self.hours = hours
     }
+    /// 목표를 채운 뒤 숫자를 가릴 차례인지. 처음 burst초는 빠르게, 그 뒤로는 1초에 한 번 느리게 깜빡인다.
+    static func blinkHidden(since seconds: Double, burst: Double) -> Bool {
+        seconds < burst ? Int(seconds * 4) % 2 == 1 : (seconds - burst).truncatingRemainder(dividingBy: 1) >= 0.6
+    }
     /// 24 → "24", 1.5 → "1.5"
     static func hoursText(_ hours: Double) -> String { hours == hours.rounded() ? String(Int(hours)) : String(hours) }
     /// 시작 시각에서 정한 시간이 다 지났는지.

@@ -75,7 +75,7 @@ final class GoalPanel: NSPanel, NSTextFieldDelegate {
 
     override var canBecomeKey: Bool { true }
 
-    private static let hint = "숫자 칸이 현재/목표로 바뀌어요. 다 채우면 불이 크게 타오르고 숫자가 금색이 되며 소리와 알림이 한 번 와요."
+    private static let hint = "숫자 칸이 현재/목표로 바뀌어요. 다 채우면 불이 크게 타오르고 숫자가 금색으로 깜빡이며 소리와 알림이 한 번 와요."
 
     func configure(_ goal: BurnGoal?) {
         let parts = BurnGoal.split(goal?.target ?? BurnGoal.suggested)
