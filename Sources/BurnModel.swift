@@ -69,3 +69,54 @@ struct BurnModel {
         return String(format: "%.1f", floor(x * 10) / 10) + units[index]
     }
 }
+
+/// 정해 둔 토큰 양. 화면 숫자가 "현재/목표"로 바뀌고, 다 채우면 금색이 되며 알림이 한 번 간다.
+struct BurnGoal: Equatable {
+    static let range = 1_000.0...999e12
+    static let units: [(title: String, scale: Double)] = [("K", 1e3), ("M", 1e6), ("B", 1e9)]
+    /// 구독 주간 한도 100%에 해당하는 입력+출력 토큰 어림.
+    /// 2026-11 한 사용자의 기록에서 실제 사용률과 맞춰 잰 값이다(Codex는 주간 창 4개에서 ±15%, Claude는 한 시점).
+    /// 요금제가 다르면 달라지므로 안내 문구에만 쓴다.
+    static let weeklyEstimate: [(source: UsageSource, tokens: Double)] = [(.claude, 37e6), (.codex, 32e6)]
+    /// 주간 어림을 7로 나눈 하루 몫에 가까운 값.
+    static let suggested = 5e6
+
+    let target: Double
+    /// 날짜가 바뀌면 0부터 다시 센다.
+    let daily: Bool
+
+    init?(target: Double, daily: Bool) {
+        guard Self.range.contains(target) else { return nil }
+        self.target = target
+        self.daily = daily
+    }
+    func reached(_ shown: Double) -> Bool { shown >= target }
+    func text(shown: Double) -> String { BurnModel.format(shown) + "/" + Self.compact(target) }
+    /// 목표 표기. 소수 한 자리로 반올림하고 ".0"은 뺀다: 5M, 2.5M, 800K.
+    static func compact(_ value: Double) -> String {
+        if value < 1000 { return String(Int(max(0, value))) }
+        let units = ["K", "M", "B", "T"]
+        var x = value / 1000, index = 0
+        while index < units.count - 1 && (x * 10).rounded() / 10 >= 1000 { x /= 1000; index += 1 }
+        let tenths = Int((x * 10).rounded())
+        return (tenths % 10 == 0 ? String(tenths / 10) : "\(tenths / 10).\(tenths % 10)") + units[index]
+    }
+    /// 입력 칸에 다시 채울 값과 단위: 2_500_000 → (2.5, M).
+    static func split(_ value: Double) -> (number: Double, unit: Int) {
+        var unit = 0
+        for (index, entry) in units.enumerated() where value >= entry.scale { unit = index }
+        return (value / units[unit].scale, unit)
+    }
+    /// "Claude 주간 한도의 약 14% · Codex 약 16%"
+    static func share(of target: Double) -> String {
+        weeklyEstimate.enumerated().map { index, entry in
+            let percent = target / entry.tokens * 100
+            let text = percent >= 10 ? String(Int(percent.rounded())) : String(format: "%.1f", percent)
+            return index == 0 ? "\(entry.source.title) 주간 한도의 약 \(text)%" : "\(entry.source.title) 약 \(text)%"
+        }.joined(separator: " · ")
+    }
+    static func dayKey(_ date: Date = Date(), calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+}

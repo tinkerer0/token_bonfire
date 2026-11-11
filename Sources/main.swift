@@ -45,7 +45,10 @@ if arguments.contains("--scan") {
         model.shown += renderer.step(dt: dt, tier: tokens == nil ? tier : model.tier, released: released)
         elapsed += dt
     }
-    guard let image = renderer.image(number: BurnModel.format(model.shown)),
+    // --goal N: 숫자를 현재/목표로 그린다.
+    let goal = BurnGoal(target: Double(value(after: "--goal") ?? "") ?? 0, daily: true)
+    guard let image = renderer.image(number: goal?.text(shown: model.shown) ?? BurnModel.format(model.shown),
+                                     gold: goal?.reached(model.shown) ?? false),
           let context = CGContext(data: nil, width: Art.width * 2, height: Art.height * 2, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: Art.space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { exit(1) }
     context.setFillColor(CGColor(red: 0.043, green: 0.043, blue: 0.051, alpha: 1))

@@ -22,7 +22,7 @@ When tokens are used, coins drop into the fire, and the more you use, the bigger
 
 ## Usage
 
-Drag the fire to wherever you want it. Right-click the fire, or click the flame icon in the menu bar, to reset the count, change the size (0.75x to 3x), pick what to count (Claude Code, Codex), adjust the stage thresholds, show or hide the number, launch at login, or preview each stage. Clicks on the transparent area around the fire pass through to the window below. The app's menus are in Korean.
+Drag the fire to wherever you want it. Right-click the fire, or click the flame icon in the menu bar, to reset the count, set a goal, change the size (0.75x to 3x), pick what to count (Claude Code, Codex), adjust the stage thresholds, show or hide the number, launch at login, or preview each stage. Clicks on the transparent area around the fire pass through to the window below. The app's menus are in Korean.
 
 ## How it counts
 
@@ -31,6 +31,8 @@ Drag the fire to wherever you want it. Right-click the fire, or click the flame 
 - The fire has five stages: idle, low, medium, high, and max. By default it becomes medium, high, and max above 8K, 25K, and 70K tokens per minute, and you can change these thresholds from the menu.
 - A burst of tokens is spread into coins over about 15 seconds, and the number goes up as each coin lands in the fire.
 - The number is a plain integer below 1000 and is shortened with K, M, B, and T above that.
+- With a goal set, the number reads current/goal, such as `1.2M/5M`, starting from 0. When the count reaches the goal, the number blinks and turns gold, and one macOS notification is sent. By default the count goes back to 0 when the date changes, and it carries over if you quit and relaunch on the same day (tokens used while the app was closed are not counted).
+- The goal window shows roughly what share of a weekly subscription limit the goal is. This is an estimate from one account's usage records (about 37M tokens for Claude Code and 32M for Codex per week) and differs by plan.
 
 The app reads only usage numbers and timestamps from session logs and makes no network connections. See [PRIVACY.md](PRIVACY.md) (Korean) for details.
 

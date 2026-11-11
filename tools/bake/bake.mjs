@@ -80,8 +80,8 @@ const CW = 16, CN = 24, COIN = fit(["#1e1206", "#4a2c08", "#86520c", "#c48412", 
 }
 
 // ---- 숫자: pixelfx big 글꼴(5x7) + 1px 외곽선, 칸 7x9 ----
-const CHARS = "0123456789.KMBT", GW = 7, GH = 9, glyphs = {};
-for (const [file, ink, outline] of [["digits", "#f4efe6", "#0b0b0d"]]) {
+const CHARS = "0123456789.KMBT/", GW = 7, GH = 9, glyphs = {};
+for (const [file, ink, outline] of [["digits", "#f4efe6", "#0b0b0d"], ["digits-goal", "#ffc94d", "#0b0b0d"]]) {
   const sheet = new Uint8Array(GW * CHARS.length * GH * 4);
   [...CHARS].forEach((ch, i) => {
     const frame = createFrame(GW, GH), out = new Uint8ClampedArray(GW * GH * 4), p = painterFor(frame);
@@ -103,7 +103,7 @@ writeFileSync(OUT + "manifest.json", JSON.stringify({
   levelChange: "목표 단계로 초당 4배율 지수 접근. 모든 단계가 같은 장 번호에서 같은 흔들림이라 장 번호를 유지한 채 단계만 바꾸면 이어진다.",
   coin: { atlas: "coin-atlas.png", size: CW, frames: CN, spinRadPerSecond: [7, 12], startY: -OY - 14, startYJitter: 30, startSpeed: [30, 70], gravity: 320, landY: -9 },
   flare: { onCoinLand: "+0.5 (최대 1), 초당 e^-4 로 감쇠", levelBoostAtFull: 2 },
-  number: { atlas: "digits-atlas.png", cell: [GW, GH], chars: CHARS, glyphs, topY: 9, align: "center", inkOffset: [1, 1], format: "1000 미만은 정수, 그 위는 소수 한 자리(내림)에 K(천)·M(백만)·B(십억)·T(조). 1000 단위를 채우면 다음 단위로 올린다. 동전이 들어갈 때만 갱신" },
+  number: { atlas: "digits-atlas.png", goalAtlas: "digits-goal-atlas.png", cell: [GW, GH], chars: CHARS, glyphs, topY: 9, align: "center", inkOffset: [1, 1], format: "1000 미만은 정수, 그 위는 소수 한 자리(내림)에 K(천)·M(백만)·B(십억)·T(조). 1000 단위를 채우면 다음 단위로 올린다. 동전이 들어갈 때만 갱신" },
   counter: { start: "앱을 켠 순간 0부터", resetButton: true, counts: "입력 + 출력 (캐시 쓰기·읽기 제외)" },
 }, null, 1));
 

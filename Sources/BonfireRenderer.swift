@@ -50,6 +50,7 @@ final class AtlasStore {
     private let keep: Int
     private let coins: [CGImage]
     private let glyphs: [Character: (image: CGImage, advance: Int)]
+    private let goalGlyphs: [Character: CGImage]
 
     init(resources: URL, keep: Int = 4) throws {
         self.resources = resources
@@ -64,15 +65,19 @@ final class AtlasStore {
         }
         let count = manifest.number.glyphs.count
         let digitSheet = try decode(resources.appendingPathComponent("digits-atlas.png"), width: Art.glyphWidth * count, height: Art.glyphHeight)
+        let goalSheet = try decode(resources.appendingPathComponent("digits-goal-atlas.png"), width: Art.glyphWidth * count, height: Art.glyphHeight)
         var table: [Character: (image: CGImage, advance: Int)] = [:]
+        var goalTable: [Character: CGImage] = [:]
         for (text, glyph) in manifest.number.glyphs {
             guard let character = text.first, (0..<count).contains(glyph.index),
                   let image = digitSheet.cropping(to: CGRect(x: glyph.index * Art.glyphWidth, y: 0, width: Art.glyphWidth, height: Art.glyphHeight)) else {
                 throw BonfireError("숫자 그림 오류")
             }
             table[character] = (image, glyph.advance)
+            goalTable[character] = goalSheet.cropping(to: CGRect(x: glyph.index * Art.glyphWidth, y: 0, width: Art.glyphWidth, height: Art.glyphHeight))
         }
         glyphs = table
+        goalGlyphs = goalTable
         _ = try fireSheet(0)
     }
 
@@ -93,7 +98,11 @@ final class AtlasStore {
         (try? fireSheet(level))?.cropping(to: CGRect(x: frame * Art.width, y: 0, width: Art.width, height: Art.height))
     }
     func coin(_ index: Int) -> CGImage { coins[index] }
-    func glyph(_ character: Character) -> (image: CGImage, advance: Int)? { glyphs[character] }
+    /// gold: 목표를 채운 뒤에 쓰는 금색 글자.
+    func glyph(_ character: Character, gold: Bool = false) -> (image: CGImage, advance: Int)? {
+        guard let plain = glyphs[character] else { return nil }
+        return gold ? goalGlyphs[character].map { ($0, plain.advance) } : plain
+    }
     var loadedFireLevels: Int { fire.count }
 }
 
@@ -170,7 +179,7 @@ final class BonfireRenderer {
         context.draw(image, in: CGRect(x: x, y: Art.height - y - image.height, width: image.width, height: image.height))
     }
 
-    func image(number: String) -> CGImage? {
+    func image(number: String, gold: Bool = false) -> CGImage? {
         context.clear(CGRect(x: 0, y: 0, width: Art.width, height: Art.height))
         let frame = Int(time * Art.fps) % Art.frames
         if let fire = atlas.fireFrame(level: fireLevel, frame: frame) { draw(fire, x: 0, y: 0) }
@@ -181,7 +190,7 @@ final class BonfireRenderer {
             draw(atlas.coin(index), x: Int((Art.originX + coin.x - half).rounded()), y: Int((Art.originY + coin.y - half).rounded()))
         }
         if showNumber {
-            let parts = number.compactMap { atlas.glyph($0) }
+            let parts = number.compactMap { atlas.glyph($0, gold: gold) }
             let width = parts.reduce(0) { $0 + $1.advance } - 1
             var x = Int((Art.originX - Double(width) / 2).rounded()) - 1
             for part in parts { draw(part.image, x: x, y: Art.numberTop); x += part.advance }

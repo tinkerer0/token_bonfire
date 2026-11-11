@@ -18,7 +18,7 @@ for architecture in "${architectures[@]}"; do
   binaries+=("$binary")
 done
 xcrun lipo -create "${binaries[@]}" -output "$APP/Contents/MacOS/TokenBonfire"
-cp "$ROOT"/Resources/fire-*-atlas.png "$ROOT/Resources/coin-atlas.png" "$ROOT/Resources/digits-atlas.png" \
+cp "$ROOT"/Resources/fire-*-atlas.png "$ROOT/Resources/coin-atlas.png" "$ROOT/Resources/digits-atlas.png" "$ROOT/Resources/digits-goal-atlas.png" \
    "$ROOT/Resources/manifest.json" "$APP/Contents/Resources/"
 cp "$ROOT/LICENSE" "$ROOT/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<PLIST

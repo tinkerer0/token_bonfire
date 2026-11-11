@@ -166,5 +166,25 @@ if CommandLine.arguments.count > 1 {
     }
 }
 
+// 목표
+do {
+    check(BurnGoal(target: 500, daily: true) == nil, "1K 미만 목표는 거절")
+    let goal = BurnGoal(target: 5_000_000, daily: true)!
+    check(goal.text(shown: 1_234_567) == "1.2M/5M", "목표 표기 \(goal.text(shown: 1_234_567))")
+    check(!goal.reached(4_999_999) && goal.reached(5_000_000), "목표 도달 판정")
+    for (value, text) in [(2_300_000.0, "2.3M"), (800_000, "800K"), (999_960, "1M"), (1_500_000_000, "1.5B"), (1000, "1K")] {
+        check(BurnGoal.compact(value) == text, "목표 줄임 \(value) → \(BurnGoal.compact(value)), 기대 \(text)")
+    }
+    let parts = BurnGoal.split(2_500_000)
+    check(parts.number == 2.5 && parts.unit == 1, "입력 칸 되채우기 \(parts)")
+    check(BurnGoal.share(of: 5_000_000) == "Claude Code 주간 한도의 약 14% · Codex 약 16%", BurnGoal.share(of: 5_000_000))
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
+    check(BurnGoal.dayKey(Date(timeIntervalSince1970: 1_794_409_200), calendar: calendar) == "2026-11-12", "날짜 열쇠")
+    if let atlas = try? AtlasStore(resources: URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "Resources")) {
+        check("0123456789.KMBT/".allSatisfy { atlas.glyph($0) != nil && atlas.glyph($0, gold: true) != nil }, "빗금·금색 글자")
+    } else { check(false, "글자 시트를 열지 못함") }
+}
+
 print(failures == 0 ? "OK" : "FAILED \(failures)")
 exit(failures == 0 ? 0 : 1)

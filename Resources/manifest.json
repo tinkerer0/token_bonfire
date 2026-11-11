@@ -121,11 +121,12 @@
  },
  "number": {
   "atlas": "digits-atlas.png",
+  "goalAtlas": "digits-goal-atlas.png",
   "cell": [
    7,
    9
   ],
-  "chars": "0123456789.KMBT",
+  "chars": "0123456789.KMBT/",
   "glyphs": {
    "0": {
     "index": 0,
@@ -185,6 +186,10 @@
    },
    "T": {
     "index": 14,
+    "advance": 6
+   },
+   "/": {
+    "index": 15,
     "advance": 6
    }
   },
