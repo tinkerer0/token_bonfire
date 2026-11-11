@@ -168,6 +168,22 @@ if arguments.contains("--scan") {
         }
     }
     print("frames \(index) size \(width)x\(height)")
+} else if let output = value(after: "--panel") {
+    // 불 옆 설정 창을 화면에 띄우지 않고 PNG로 저장한다: --panel out.png [--open]
+    _ = NSApplication.shared
+    let window = ControlPanel(scaleRange: 0.75...3, scaleStep: 0.25)
+    var state = ControlPanel.State()
+    state.goal = BurnGoal(target: 5_000_000, hours: 24)
+    state.count = state.goal!.text(shown: 1_234_567)
+    state.status = "불 단계 강 · 분당 약 35.9K · 초기화까지 3시간 12분"
+    state.sources = Set(UsageSource.allCases)
+    window.update(state)
+    if arguments.contains("--open") { window.expandSettings() }
+    guard let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { exit(1) }
+    view.cacheDisplay(in: view.bounds, to: bitmap)
+    guard let data = bitmap.representation(using: .png, properties: [:]) else { exit(1) }
+    try data.write(to: URL(fileURLWithPath: output))
+    print("panel \(Int(view.bounds.width))x\(Int(view.bounds.height))")
 } else {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)

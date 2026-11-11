@@ -22,7 +22,7 @@ When tokens are used, coins drop into the fire, and the more you use, the bigger
 
 ## Usage
 
-Drag the fire to wherever you want it. Right-click the fire, or click the flame icon in the menu bar, to set a goal, reset the count, pick what to count (Claude Code, Codex), change the size (0.75x to 3x), pick the fire color (orange, blue, green, purple), show or hide the number, adjust the stage thresholds, preview each stage, or launch at login. Clicks on the transparent area around the fire pass through to the window below. The app's menus are in Korean.
+Drag the fire to wherever you want it. Click the fire to open a settings window next to it (the flame icon in the menu bar has the same items) to set a goal, reset the count, pick what to count (Claude Code, Codex), change the size (0.75x to 3x), pick the fire color (orange, blue, green, purple), show or hide the number, adjust the stage thresholds, preview each stage, or launch at login. Clicks on the transparent area around the fire pass through to the window below. The app's menus are in Korean.
 
 ## How it counts
 

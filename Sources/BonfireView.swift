@@ -2,13 +2,13 @@ import AppKit
 
 /// 합쳐진 한 장을 레이어에 그대로 올린다. 확대는 합성기가 최근접 방식으로 한다.
 final class BonfireView: NSView {
-    var menuProvider: (() -> NSMenu)?
+    /// 끌지 않고 누르기만 했을 때(우클릭 포함).
+    var onClick: (() -> Void)?
     var onMoveEnded: (() -> Void)?
     /// 그림 좌표(왼쪽 위 기준)가 불투명한지. 투명한 곳의 클릭은 아래 창으로 넘긴다.
     var isOpaqueAt: ((Int, Int) -> Bool)?
     private var pointerTimer: Timer?
     private var dragStart: (mouse: NSPoint, origin: NSPoint)?
-    private var inMenu = false
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -36,7 +36,7 @@ final class BonfireView: NSView {
     }
 
     private func updateMousePassThrough() {
-        guard let window, dragStart == nil, !inMenu, let isOpaqueAt, bounds.width > 0 else { return }
+        guard let window, dragStart == nil, let isOpaqueAt, bounds.width > 0 else { return }
         let point = convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
         let x = Int(floor((point.x - bounds.minX) * CGFloat(Art.width) / bounds.width))
         let y = Int(floor((bounds.maxY - point.y) * CGFloat(Art.height) / bounds.height))
@@ -56,13 +56,10 @@ final class BonfireView: NSView {
         window.setFrameOrigin(NSPoint(x: start.origin.x + mouse.x - start.mouse.x, y: start.origin.y + mouse.y - start.mouse.y))
     }
     override func mouseUp(with event: NSEvent) {
+        guard let start = dragStart else { return }
         dragStart = nil
-        onMoveEnded?()
+        let mouse = NSEvent.mouseLocation
+        if abs(mouse.x - start.mouse.x) < 3, abs(mouse.y - start.mouse.y) < 3 { onClick?() } else { onMoveEnded?() }
     }
-    override func rightMouseDown(with event: NSEvent) {
-        guard let menu = menuProvider?() else { return }
-        inMenu = true
-        NSMenu.popUpContextMenu(menu, with: event, for: self)
-        inMenu = false
-    }
+    override func rightMouseDown(with event: NSEvent) { onClick?() }
 }

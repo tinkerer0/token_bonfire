@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     private var thresholdWindow: ThresholdPanel?
     private var shownText = ""
     private var goalWindow: GoalPanel?
+    private var controls: ControlPanel?
     private var goal: BurnGoal?
     private var goalReached = false
     private var goalReachedAt: Double?
@@ -64,8 +65,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         restoreGoalCount()
         UNUserNotificationCenter.current().delegate = self
         view = BonfireView(frame: NSRect(origin: .zero, size: size))
-        view.menuProvider = { [weak self] in self?.makeMenu() ?? NSMenu() }
-        view.onMoveEnded = { [weak self] in self?.keepOnScreen(); self?.savePosition() }
+        view.onClick = { [weak self] in self?.toggleControls() }
+        view.onMoveEnded = { [weak self] in
+            guard let self else { return }
+            self.keepOnScreen()
+            self.savePosition()
+            if self.controls?.isVisible == true { self.controls?.show(beside: self.panel.frame) }
+        }
         view.isOpaqueAt = { [weak self] x, y in self?.renderer.isOpaque(x: x, y: y) ?? false }
         panel = BonfirePanel(contentRect: NSRect(origin: initialOrigin(), size: size),
                              styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -189,12 +195,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         }
         shownText = ""
         updateStatus()
+        refreshControls()
+    }
+
+    // MARK: 불 옆 설정 창
+
+    private func toggleControls() {
+        if let controls, controls.isVisible { controls.orderOut(nil); return }
+        if controls == nil {
+            let window = ControlPanel(scaleRange: Self.scaleRange, scaleStep: Self.scaleStep)
+            window.onReset = { [weak self] in self?.resetCount() }
+            window.onGoal = { [weak self] next in self?.applyGoal(next) }
+            window.onThresholds = { [weak self] in self?.showThresholds() }
+            window.onSource = { [weak self] source, on in self?.setSource(source, on: on) }
+            window.onScale = { [weak self] value in self?.setScale(value) }
+            window.onColor = { [weak self] color in self?.setColor(color) }
+            window.onNumber = { [weak self] on in if self?.showNumber != on { self?.toggleNumber() } }
+            window.onPreview = { [weak self] tier in self?.preview = tier; self?.refreshControls() }
+            window.onLogin = { [weak self] in self?.toggleLoginItem(); self?.refreshControls() }
+            controls = window
+        }
+        refreshControls(force: true)
+        controls?.show(beside: panel.frame)
+    }
+    private func refreshControls(force: Bool = false) {
+        guard let controls, force || controls.isVisible else { return }
+        let tier = preview ?? model.tier
+        var parts = ["불 단계 \(BurnModel.tierNames[tier])" + (preview == nil ? "" : " (미리보기)")]
+        if model.rate > 0 { parts.append("분당 약 \(BurnModel.format(model.rate * 60))") }
+        if let remainingText { parts.append("초기화까지 \(remainingText)") }
+        var state = ControlPanel.State()
+        state.count = goal?.text(shown: model.shown) ?? BurnModel.format(model.shown)
+        state.status = parts.joined(separator: " · ")
+        state.goal = goal
+        state.sources = sources
+        state.scale = scale
+        state.color = fireColor
+        state.showNumber = showNumber
+        state.preview = preview
+        state.login = SMAppService.mainApp.status == .enabled
+        controls.update(state)
     }
 
     // MARK: 집계
 
     private func poll() {
         checkPeriod()
+        refreshControls()
         saveGoalCount()
         guard !polling else { return }
         polling = true
@@ -254,7 +301,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         shownText = text
         statusItem.button?.title = " " + text
         let summary = "태운 토큰 \(text)"
-        view.toolTip = summary + "\n드래그로 이동 · 우클릭으로 설정"
+        view.toolTip = summary + "\n드래그로 이동 · 클릭으로 설정"
         view.setAccessibilityLabel("Token Bonfire · " + summary)
     }
 
@@ -337,9 +384,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
     @objc private func pickColor(_ sender: NSMenuItem) {
         guard FireColor.allCases.indices.contains(sender.tag) else { return }
-        fireColor = FireColor.allCases[sender.tag]
+        setColor(FireColor.allCases[sender.tag])
+    }
+    private func setColor(_ color: FireColor) {
+        fireColor = color
         defaults.set(fireColor.rawValue, forKey: "fireColor")
         renderer.atlas.color = fireColor
+        refreshControls()
     }
 
     @objc private func resetCount() {
@@ -353,6 +404,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         if goal != nil { defaults.set(goalStart.timeIntervalSince1970, forKey: "goalStart") }
         saveGoalCount()
         updateStatus()
+        refreshControls()
     }
     /// 메뉴 안의 크기 막대. 0.25배 간격으로 끌면 바로 창 크기가 바뀐다.
     private func sizeItem() -> NSMenuItem {
@@ -376,8 +428,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         return item
     }
 
-    @objc private func resize(_ slider: NSSlider) {
-        let next = (slider.doubleValue / Self.scaleStep).rounded() * Self.scaleStep
+    @objc private func resize(_ slider: NSSlider) { setScale(slider.doubleValue) }
+    private func setScale(_ value: Double) {
+        let next = (value / Self.scaleStep).rounded() * Self.scaleStep
         guard Self.scaleRange.contains(next), next != scale else { return }
         scale = next
         defaults.set(scale, forKey: "scaleFactor")
@@ -386,12 +439,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         panel.setFrame(NSRect(x: old.midX - size.width / 2, y: old.minY, width: size.width, height: size.height), display: true)
         keepOnScreen()
         savePosition()
+        if controls?.isVisible == true { controls?.show(beside: panel.frame) }
+        refreshControls()
     }
     @objc private func toggleSource(_ item: NSMenuItem) {
         guard UsageSource.allCases.indices.contains(item.tag) else { return }
         let source = UsageSource.allCases[item.tag]
-        if sources.contains(source) { sources.remove(source) } else { sources.insert(source) }
+        setSource(source, on: !sources.contains(source))
+    }
+    private func setSource(_ source: UsageSource, on: Bool) {
+        if on { sources.insert(source) } else { sources.remove(source) }
         defaults.set(sources.map(\.rawValue).sorted(), forKey: "sources")
+        refreshControls()
     }
     @objc private func showThresholds() {
         if thresholdWindow == nil {
@@ -410,6 +469,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         showNumber.toggle()
         defaults.set(showNumber, forKey: "showNumber")
         renderer.showNumber = showNumber
+        refreshControls()
     }
     @objc private func toggleLoginItem() {
         do {
@@ -424,6 +484,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
     @objc private func showPreview(_ item: NSMenuItem) {
         preview = BurnModel.tierNames.indices.contains(item.tag) ? item.tag : nil
+        refreshControls()
     }
 
     // MARK: 위치
