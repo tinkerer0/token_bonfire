@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     private var scale = 1.5
     private var sources = Set(UsageSource.allCases)
     private var showNumber = true
+    private var fireColor = FireColor.orange
 
     private static let scaleRange = 0.75...3.0, scaleStep = 0.25
     private var size: NSSize { NSSize(width: (Double(Art.width) * scale).rounded(), height: (Double(Art.height) * scale).rounded()) }
@@ -57,6 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             NSApp.terminate(nil)
             return
         }
+        renderer.atlas.color = fireColor
         renderer.showNumber = showNumber
         model.thresholds = BurnThresholds.load()
         restoreGoalCount()
@@ -100,6 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         let saved = defaults.double(forKey: "scaleFactor")
         if Self.scaleRange.contains(saved) { scale = saved }
         if let names = defaults.stringArray(forKey: "sources") { sources = Set(names.compactMap(UsageSource.init(rawValue:))) }
+        fireColor = FireColor(rawValue: defaults.string(forKey: "fireColor") ?? "") ?? .orange
         if defaults.object(forKey: "showNumber") != nil { showNumber = defaults.bool(forKey: "showNumber") }
         var hours: Double? = BurnGoal.suggestedHours
         if defaults.object(forKey: "goalHours") != nil {
@@ -142,7 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     private var remainingText: String? {
         guard let hours = goal?.hours else { return nil }
         let minutes = max(0, Int((hours * 3600 - Date().timeIntervalSince(goalStart)) / 60))
-        return minutes >= 60 ? "\(minutes / 60)시간 \(minutes % 60)분 남음" : "\(minutes)분 남음"
+        return minutes >= 60 ? "\(minutes / 60)시간 \(minutes % 60)분" : "\(minutes)분"
     }
     private func checkGoal() {
         guard let goal, !goalReached, goal.reached(model.shown) else { return }
@@ -286,21 +289,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         let total = BurnModel.format(model.shown + model.pending + renderer.tokensInFlight)
         let against = goal.map { " / " + BurnGoal.compact($0.target) + (goalReached ? " (다 씀)" : "") } ?? ""
         add("태운 토큰 \(total)\(against)", nil)
-        var state = "불 세기 \(BurnModel.tierNames[tier])" + (preview == nil ? "" : " (미리보기)")
+        var state = "불 단계 \(BurnModel.tierNames[tier])" + (preview == nil ? "" : " (미리보기)")
         if model.rate > 0 { state += " · 분당 약 \(BurnModel.format(model.rate * 60))" }
         add(state, nil)
-        if let remainingText { add("\(remainingText), 그 뒤 0부터", nil) }
+        if let remainingText { add("자동 초기화까지 \(remainingText)", nil) }
 
         section("집계")
         if let goal {
             let period = goal.hours.map { " · \(BurnGoal.hoursText($0))시간마다" } ?? ""
-            add("목표 \(BurnGoal.compact(goal.target))\(period)…", #selector(showGoal))
+            add("목표 수정… (\(BurnGoal.compact(goal.target))\(period))", #selector(showGoal))
         } else {
-            add("목표 정하기…", #selector(showGoal))
+            add("목표 설정…", #selector(showGoal))
         }
-        add("지금 0부터 다시 세기", #selector(resetCount))
+        add("집계 초기화", #selector(resetCount))
         let counted = UsageSource.allCases.filter { sources.contains($0) }.map(\.title).joined(separator: " · ")
-        submenu("세는 대상: " + (counted.isEmpty ? "없음" : counted)) { sub in
+        submenu("집계 대상 (" + (counted.isEmpty ? "없음" : counted) + ")") { sub in
             for (index, source) in UsageSource.allCases.enumerated() {
                 add(source.title, #selector(toggleSource(_:)), to: sub, on: sources.contains(source), tag: index)
             }
@@ -308,9 +311,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
         section("모양")
         menu.addItem(sizeItem())
-        add("숫자 보이기", #selector(toggleNumber), on: showNumber)
-        add("불 세기 기준…", #selector(showThresholds))
-        submenu("불 세기 미리보기") { sub in
+        submenu("불 색 (\(fireColor.title))") { sub in
+            for (index, color) in FireColor.allCases.enumerated() {
+                add(color.title, #selector(pickColor(_:)), to: sub, on: fireColor == color, tag: index)
+            }
+        }
+        add("숫자 표시", #selector(toggleNumber), on: showNumber)
+        add("불 단계 기준…", #selector(showThresholds))
+        submenu("불 단계 미리보기") { sub in
             add("자동 · 실제 사용량", #selector(showPreview(_:)), to: sub, on: preview == nil, tag: -1)
             for (index, name) in BurnModel.tierNames.enumerated() {
                 add(name, #selector(showPreview(_:)), to: sub, on: preview == index, tag: index)
@@ -318,11 +326,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         }
 
         section("앱")
-        add("로그인할 때 자동 실행", #selector(toggleLoginItem), on: SMAppService.mainApp.status == .enabled)
+        add("로그인 시 자동 실행", #selector(toggleLoginItem), on: SMAppService.mainApp.status == .enabled)
         let quit = NSMenuItem(title: "Token Bonfire 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
         menu.addItem(quit)
         return menu
+    }
+
+    @objc private func pickColor(_ sender: NSMenuItem) {
+        guard FireColor.allCases.indices.contains(sender.tag) else { return }
+        fireColor = FireColor.allCases[sender.tag]
+        defaults.set(fireColor.rawValue, forKey: "fireColor")
+        renderer.atlas.color = fireColor
     }
 
     @objc private func resetCount() {

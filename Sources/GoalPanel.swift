@@ -47,8 +47,8 @@ final class GoalPanel: NSPanel, NSTextFieldDelegate {
         hours.alignment = .right
         hours.setAccessibilityLabel("다시 세는 시간")
         hours.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        timed.setAccessibilityLabel("정한 시간마다 0부터 다시 세기")
-        let period = NSStackView(views: [timed, hours, NSTextField(labelWithString: "시간마다 0부터 다시 세기")])
+        timed.setAccessibilityLabel("정한 시간마다 집계 초기화")
+        let period = NSStackView(views: [timed, hours, NSTextField(labelWithString: "시간마다 집계 초기화")])
         period.alignment = .centerY
         period.spacing = 6
         stack.addArrangedSubview(period)

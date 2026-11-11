@@ -35,6 +35,7 @@ if arguments.contains("--scan") {
     let tier = min(4, max(0, Int(value(after: "--tier") ?? "") ?? 2))
     let seconds = Double(value(after: "--seconds") ?? "") ?? 4
     let renderer = try BonfireRenderer(atlas: AtlasStore(resources: resourcesURL()))
+    renderer.atlas.color = FireColor(rawValue: value(after: "--color") ?? "") ?? .orange
     var model = BurnModel()
     let tokens = Double(value(after: "--tokens") ?? "")
     if let tokens { model.add(tokens) }

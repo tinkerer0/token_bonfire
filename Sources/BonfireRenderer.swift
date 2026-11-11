@@ -35,6 +35,13 @@ private func decode(_ url: URL, width: Int, height: Int) throws -> CGImage {
     return decoded
 }
 
+/// 불 색. 색마다 따로 구운 시트가 있다.
+enum FireColor: String, CaseIterable {
+    case orange, blue, green, purple
+    var title: String { ["orange": "주황", "blue": "파랑", "green": "초록", "purple": "보라"][rawValue]! }
+    var filePart: String { self == .orange ? "" : rawValue + "-" }
+}
+
 /// 구운 시트를 읽어 낱장을 내준다. 불 시트는 한 장이 풀면 10MB라 최근에 쓴 몇 단계만 들고 있는다.
 final class AtlasStore {
     private struct Manifest: Decodable {
@@ -45,6 +52,8 @@ final class AtlasStore {
         let number: Number
     }
     private let resources: URL
+    /// 불 색. 바꾸면 들고 있던 시트를 버리고 새 색으로 다시 읽는다.
+    var color = FireColor.orange { didSet { if color != oldValue { fire = [:]; recent = [] } } }
     private var fire: [Int: CGImage] = [:]
     private var recent: [Int] = []
     private let keep: Int
@@ -86,7 +95,7 @@ final class AtlasStore {
             if recent.last != level { recent.removeAll { $0 == level }; recent.append(level) }
             return sheet
         }
-        let name = String(format: "fire-%02d-atlas.png", level)
+        let name = "fire-" + color.filePart + String(format: "%02d-atlas.png", level)
         let sheet = try decode(resources.appendingPathComponent(name), width: Art.width * Art.frames, height: Art.height)
         fire[level] = sheet
         recent.append(level)

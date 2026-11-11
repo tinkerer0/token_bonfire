@@ -157,6 +157,11 @@ if CommandLine.arguments.count > 1 {
         check(maxLevel >= 8 && maxLevel <= 10, "폭주에서 불 단계 \(maxLevel)")
         check(renderer.fireLevel == 0, "다 타면 대기 단계, 실제 \(renderer.fireLevel)")
         check(atlas.loadedFireLevels <= 4, "들고 있는 불 시트 \(atlas.loadedFireLevels)")
+        for color in FireColor.allCases {
+            atlas.color = color
+            check((0...10).allSatisfy { atlas.fireFrame(level: $0, frame: 0) != nil }, "\(color.title) 불 시트")
+        }
+        atlas.color = .orange
         _ = renderer.image(number: "0")
         check(renderer.isOpaque(x: 80, y: 146), "장작 자리는 불투명")
         check(!renderer.isOpaque(x: 2, y: 2), "구석은 투명")

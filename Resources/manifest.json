@@ -8,6 +8,12 @@
   "fps": 30,
   "frames": 90
  },
+ "fireColors": [
+  "orange",
+  "blue",
+  "green",
+  "purple"
+ ],
  "fireLevels": [
   {
    "atlas": "fire-00-atlas.png",

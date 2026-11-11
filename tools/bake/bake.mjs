@@ -45,10 +45,15 @@ function decodePng(buf) {
 const blit = (sheet, sw, cell, cw, ch, i) => { for (let y = 0; y < ch; y++) sheet.set(cell.subarray(y * cw * 4, (y + 1) * cw * 4), (y * sw + i * cw) * 4); };
 const durations = (n, fps) => Array.from({ length: n }, (_, i) => Math.round(((i + 1) * 1000) / fps) - Math.round((i * 1000) / fps));
 
-// ---- 불: 단계마다 90장 ----
-function renderFire(level, i) {
+// ---- 불: 단계마다 90장. 기본 주황은 fire-NN, 다른 색은 fire-<색>-NN ----
+const COLORS = {
+  blue: ["#12163f", "#1b2a7a", "#2740c4", "#3f5cf0", "#6470F3", "#8fa8ff", "#b9d0ff", "#e1eeff", "#ffffff"],
+  green: ["#0c2a14", "#125225", "#1a8a33", "#2fbf3f", "#62dd4a", "#a3ee5c", "#d2f77f", "#eeffb8", "#ffffff"],
+  purple: ["#260f3d", "#4a1a78", "#7426b8", "#9a3df0", "#b665ff", "#cf94ff", "#e2bcff", "#f3e1ff", "#ffffff"],
+};
+function renderFire(level, i, palette) {
   const h = LEVEL_H[level], frame = createFrame(W, H), out = new Uint8ClampedArray(W * H * 4);
-  const fx = createFx(campfire, { x: OX, y: OY, light: GLOW, height: h, girth: girthAt(h) });
+  const fx = createFx(campfire, { x: OX, y: OY, light: GLOW, height: h, girth: girthAt(h), ...(palette ? { palette } : {}) });
   fx.update(i / FPS);
   fx.draw(frame);
   composite(frame, out, null, 1);
@@ -62,6 +67,14 @@ for (let L = 0; L < LEVEL_H.length; L++) {
   writeFileSync(OUT + name + "-atlas.png", png);
   writeFileSync(OUT + name + ".json", JSON.stringify({ width: W, height: H, durations: durations(FRAMES, FPS) }));
   fireFiles.push({ name, height: LEVEL_H[L], girth: +girthAt(LEVEL_H[L]).toFixed(3), bytes: png.length });
+}
+let colorBytes = 0;
+for (const [color, palette] of Object.entries(COLORS)) for (let L = 0; L < LEVEL_H.length; L++) {
+  const sheet = new Uint8Array(W * FRAMES * H * 4);
+  for (let i = 0; i < FRAMES; i++) blit(sheet, W * FRAMES, renderFire(L, i, palette), W, H, i);
+  const png = encodePng(W * FRAMES, H, sheet);
+  writeFileSync(OUT + `fire-${color}-${String(L).padStart(2, "0")}-atlas.png`, png);
+  colorBytes += png.length;
 }
 
 // ---- 동전: 한 바퀴 24장, 16x16 ----
@@ -98,6 +111,7 @@ for (const [file, ink, outline] of [["digits", "#f4efe6", "#0b0b0d"], ["digits-g
 writeFileSync(OUT + "manifest.json", JSON.stringify({
   note: "Token Bonfire 그림 규격. 불은 pixelfx Campfire(MIT)로 그렸다. 좌표는 불 칸(160x180) 기준, origin이 장작 바닥 가운데.",
   frame: { width: W, height: H, originX: OX, originY: OY, fps: FPS, frames: FRAMES },
+  fireColors: ["orange", ...Object.keys(COLORS)],
   fireLevels: fireFiles.map(({ name, height, girth }) => ({ atlas: name + "-atlas.png", height, girth })),
   tiers: ["대기", "약", "중", "강", "폭주"].map((name, i) => ({ name, level: LEVEL_H.indexOf(TIER_H[i]), coinsPerSecond: [0, 1, 3, 7, 16][i], coinSpreadX: [14, 16, 18, 22, 26][i] })),
   levelChange: "목표 단계로 초당 4배율 지수 접근. 모든 단계가 같은 장 번호에서 같은 흔들림이라 장 번호를 유지한 채 단계만 바꾸면 이어진다.",
@@ -117,4 +131,4 @@ for (const [L, i] of [[0, 0], [4, 17], [8, 45], [10, 89], [6, 60], [2, 33]]) {
 const a = renderFire(4, 0), fxb = createFx(campfire, { x: OX, y: OY, light: GLOW, height: LEVEL_H[4], girth: girthAt(LEVEL_H[4]) }), fb = createFrame(W, H), b = new Uint8ClampedArray(W * H * 4);
 fxb.update(3); fxb.draw(fb); composite(fb, b, null, 1);
 let seam = 0; for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) seam++;
-console.log(JSON.stringify({ levels: fireFiles.length, totalBytes: fireFiles.reduce((s, f) => s + f.bytes, 0), roundTrip: { checkedBytes: checked, mismatched: bad }, loopSeamMismatchedBytes: seam }));
+console.log(JSON.stringify({ levels: fireFiles.length, colorBytes, totalBytes: fireFiles.reduce((s, f) => s + f.bytes, 0), roundTrip: { checkedBytes: checked, mismatched: bad }, loopSeamMismatchedBytes: seam }));
