@@ -24,6 +24,10 @@ When tokens are used, coins drop into the fire, and the more you use, the bigger
 
 Drag the fire to wherever you want it. Click the fire to open a settings window next to it (the flame icon in the menu bar has the same items) to set a goal, reset the count, pick what to count (Claude Code, Codex), change the size (0.75x to 3x), pick the fire color (orange, blue, green, purple), show or hide the number, adjust the stage thresholds, preview each stage, or launch at login. Clicks on the transparent area around the fire pass through to the window below. The app's menus are in Korean.
 
+![The settings window that opens next to the fire, with the goal switch, amount, and hours](docs/panel.png)
+
+![Setting a goal, reaching it, and switching fire colors](docs/tour-en.gif)
+
 ## How it counts
 
 - The count starts at 0 when the app launches. It keeps adding up while the app runs, and goes back to 0 when you reset or quit.
@@ -44,6 +48,7 @@ BIN=dist/TokenBonfire.app/Contents/MacOS/TokenBonfire
 $BIN --scan 30                              # usage picked up over 30 seconds
 $BIN --render out.png --tier 3 --seconds 5  # draw one frame without a window
 $BIN --demo frames --seconds 2              # frames for each stage
+$BIN --tour frames                          # frames for the goal and color tour
 ```
 
 Token counting lives in `Sources/TokenUsage.swift`, fire stages and number formatting in `Sources/BurnModel.swift`, and compositing in `Sources/BonfireRenderer.swift`. The art in `Resources/` can be rebuilt by placing [pixelfx](https://github.com/tinkerer0/pixelfx) at `tools/bake/pixelfx` and running `node tools/bake/bake.mjs`.

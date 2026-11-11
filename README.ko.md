@@ -24,6 +24,10 @@ Xcode Command Line Tools만 있으면 됩니다. 외부 의존성은 없습니�
 
 불을 끌어서 원하는 자리에 둡니다. 불을 누르면 옆에 설정 창이 뜨고, 메뉴바의 불꽃 아이콘에도 같은 항목이 있습니다. 여기서 목표, 집계 초기화, 집계 대상(Claude Code·Codex), 크기(0.75~3배), 불 색(주황·파랑·초록·보라), 숫자 표시, 불 단계 기준, 단계 미리보기, 로그인 시 자동 실행을 고를 수 있습니다. 불이 없는 투명한 자리의 클릭은 아래 창으로 넘어갑니다.
 
+![불 옆에 뜨는 설정 창. 목표 스위치와 양, 시간 칸이 있다](docs/panel.png)
+
+![목표를 정하고, 채우고, 불 색을 바꾸는 모습](docs/tour.gif)
+
 ## 집계 방식
 
 - 앱을 켠 순간 0에서 시작합니다. 켜 둔 동안 계속 쌓이고, 초기화하거나 끄면 0이 됩니다.
@@ -44,6 +48,7 @@ BIN=dist/TokenBonfire.app/Contents/MacOS/TokenBonfire
 $BIN --scan 30                              # 30초 동안 잡힌 사용량
 $BIN --render out.png --tier 3 --seconds 5  # 화면 없이 한 장 그리기
 $BIN --demo frames --seconds 2              # 단계별 낱장
+$BIN --tour frames                          # 목표·불 색 소개 낱장
 ```
 
 토큰 집계는 `Sources/TokenUsage.swift`, 불 단계와 숫자 표기는 `Sources/BurnModel.swift`, 그림 합성은 `Sources/BonfireRenderer.swift`에 있습니다. `Resources/`의 그림은 `tools/bake/pixelfx`에 [pixelfx](https://github.com/tinkerer0/pixelfx)를 두고 `node tools/bake/bake.mjs`로 다시 만들 수 있습니다.
