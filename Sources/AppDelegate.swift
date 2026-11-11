@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lastTick = 0.0
     private var sleeping = false
     private var preview: Int?
+    private var thresholdWindow: ThresholdPanel?
     private var shownText = ""
     private var observers: [NSObjectProtocol] = []
     private let defaults = UserDefaults.standard
@@ -49,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         renderer.showNumber = showNumber
+        model.thresholds = BurnThresholds.load()
         view = BonfireView(frame: NSRect(origin: .zero, size: size))
         view.menuProvider = { [weak self] in self?.makeMenu() ?? NSMenu() }
         view.onMoveEnded = { [weak self] in self?.keepOnScreen(); self?.savePosition() }
@@ -183,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 add(source.title, #selector(toggleSource(_:)), to: sub, on: sources.contains(source), tag: index)
             }
         }
+        add("불 기준…", #selector(showThresholds))
         add("숫자 표시", #selector(toggleNumber), on: showNumber)
         add("로그인 시 실행", #selector(toggleLoginItem), on: SMAppService.mainApp.status == .enabled)
         submenu("미리보기") { sub in
@@ -243,6 +246,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let source = UsageSource.allCases[item.tag]
         if sources.contains(source) { sources.remove(source) } else { sources.insert(source) }
         defaults.set(sources.map(\.rawValue).sorted(), forKey: "sources")
+    }
+    @objc private func showThresholds() {
+        if thresholdWindow == nil {
+            let window = ThresholdPanel()
+            window.onApply = { [weak self] next in
+                self?.model.thresholds = next
+                next.save()
+            }
+            thresholdWindow = window
+        }
+        thresholdWindow?.configure(model.thresholds)
+        NSApp.activate(ignoringOtherApps: true)
+        thresholdWindow?.makeKeyAndOrderFront(nil)
     }
     @objc private func toggleNumber() {
         showNumber.toggle()

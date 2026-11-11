@@ -111,6 +111,19 @@ do {
     check(model.tier == 1, "1500 토큰은 약 단계, 실제 \(model.tier)")
     model.add(60_000)
     check(model.tier == 4, "6만 토큰이 한꺼번에 오면 폭주, 실제 \(model.tier)")
+    // 기준을 바꾸면 같은 양도 다른 단계가 된다
+    var light = BurnModel()
+    light.thresholds = BurnThresholds.presets[0]
+    light.add(1500)
+    check(light.tier == 2, "가벼운 기준에서는 1500 토큰(분당 6천 꼴)이 중 단계, 실제 \(light.tier)")
+    check(BurnThresholds(perMinuteThousands: [8, 25, 70]) == .standard, "기본 기준")
+    check(BurnThresholds(perMinuteThousands: [30, 20, 70]) == nil, "거꾸로 된 기준은 거부")
+    check(BurnThresholds(perMinuteThousands: [0, 20, 70]) == nil && BurnThresholds(perMinuteThousands: [8, 25]) == nil, "범위·개수 검사")
+    check(BurnThresholds(perMinuteThousands: [10, 10, 10]) != nil, "같은 값은 허용")
+    var same = BurnModel()
+    same.thresholds = BurnThresholds(perMinuteThousands: [10, 10, 10])!
+    same.add(3000)
+    check(same.tier == 4, "같은 값이면 더 높은 단계, 실제 \(same.tier)")
     var out = 0.0, steps = 0
     while model.pending > 0 && steps < 100_000 { out += model.drain(1.0 / 30); steps += 1 }
     check(abs(out - 61_500) < 1e-6, "풀려 나간 합 \(out)")

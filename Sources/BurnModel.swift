@@ -1,15 +1,41 @@
 import Foundation
 
+/// 중·강·폭주 단계가 시작되는 속도. 분당 천 토큰 단위로 저장한다.
+struct BurnThresholds: Equatable {
+    static let titles = ["중", "강", "폭주"]
+    static let range = 1...9999
+    static let standard = BurnThresholds(perMinuteThousands: [8, 25, 70])!
+    /// 에이전트 한두 개 / 여러 개(기본) / 열 개 넘게 돌릴 때에 맞춘 값.
+    static let presets = [BurnThresholds(perMinuteThousands: [4, 12, 30])!, standard,
+                          BurnThresholds(perMinuteThousands: [20, 60, 150])!]
+    static let defaultsKey = "burnThresholds"
+    let perMinuteThousands: [Int]
+
+    init?(perMinuteThousands values: [Int]) {
+        guard values.count == Self.titles.count, values.allSatisfy({ Self.range.contains($0) }),
+              zip(values, values.dropFirst()).allSatisfy({ $0.0 <= $0.1 }) else { return nil }
+        perMinuteThousands = values
+    }
+    /// 초당 토큰으로 바꾼 값.
+    var perSecond: [Double] { perMinuteThousands.map { Double($0) * 1000 / 60 } }
+    static func load(from defaults: UserDefaults = .standard) -> BurnThresholds {
+        guard let values = defaults.array(forKey: defaultsKey) as? [Int],
+              let value = BurnThresholds(perMinuteThousands: values) else { return .standard }
+        return value
+    }
+    func save(to defaults: UserDefaults = .standard) { defaults.set(perMinuteThousands, forKey: Self.defaultsKey) }
+}
+
 /// 들어온 토큰을 한꺼번에 태우지 않고 몇 초에 걸쳐 풀어낸다. 풀려 나가는 속도가 불 단계를 정한다.
 struct BurnModel {
     static let tierNames = ["대기", "약", "중", "강", "폭주"]
     /// 한 번에 들어온 양이 대략 이 시간에 걸쳐 탄다.
     static let drainSeconds = 15.0
-    /// 단계가 시작되는 속도(초당 토큰). 분당 8천·2.5만·7만.
-    static let tierRates: [Double] = [0, 0, 8000.0 / 60, 25000.0 / 60, 70000.0 / 60]
     /// 남은 양이 적을 때의 최소 속도. 끝자락이 한없이 늘어지지 않게 한다.
     static let floorRate = 15.0
 
+    /// 중·강·폭주가 시작되는 속도. 같은 값이면 더 높은 단계가 된다.
+    var thresholds = BurnThresholds.standard
     private(set) var pending = 0.0
     /// 화면 숫자. 동전이 불에 들어갈 때 오른다.
     var shown = 0.0
@@ -21,7 +47,7 @@ struct BurnModel {
         let value = rate
         guard value > 0 else { return 0 }
         var tier = 1
-        for index in 2..<Self.tierRates.count where value >= Self.tierRates[index] { tier = index }
+        for (index, start) in thresholds.perSecond.enumerated() where value >= start { tier = index + 2 }
         return tier
     }
     /// dt초 동안 풀려 나간 토큰.
