@@ -181,6 +181,53 @@ if arguments.contains("--scan") {
     if arguments.contains("--open") { window.expandSettings() }
     guard let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { exit(1) }
     view.cacheDisplay(in: view.bounds, to: bitmap)
+    if arguments.contains("--with-fire") {
+        // 불과 창을 한 장에 나란히 그린다(2배 크기).
+        let renderer = try BonfireRenderer(atlas: AtlasStore(resources: resourcesURL()))
+        renderer.atlas.color = FireColor(rawValue: value(after: "--color") ?? "") ?? .orange
+        var shown = 1_234_567.0
+        for _ in 0..<150 { shown += renderer.step(dt: 1 / Art.fps, tier: 3, released: 300) }
+        guard let fire = renderer.image(number: state.goal!.text(shown: shown)), let panelImage = bitmap.cgImage else { exit(1) }
+        let k = 2.0, zoom = 1.5 * k
+        let fireW = Double(Art.width) * zoom, fireH = Double(Art.height) * zoom
+        let panelW = Double(view.bounds.width) * k, panelH = Double(view.bounds.height) * k, bar = 28 * k, pad = 40 * k
+        let overlap = 38 * zoom
+        let width = Int(pad + fireW - overlap + panelW + pad), height = Int(pad + max(fireH, panelH + bar) + pad)
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: Art.space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { exit(1) }
+        context.setFillColor(CGColor(red: 0.043, green: 0.043, blue: 0.051, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.interpolationQuality = .none
+        context.draw(fire, in: CGRect(x: pad, y: pad, width: fireW, height: fireH))
+        let box = CGRect(x: pad + fireW - overlap, y: pad, width: panelW, height: panelH + bar)
+        let shape = CGPath(roundedRect: box, cornerWidth: 12 * k, cornerHeight: 12 * k, transform: nil)
+        context.addPath(shape)
+        context.setFillColor(CGColor(red: 0.13, green: 0.13, blue: 0.14, alpha: 1))
+        context.fillPath()
+        context.addPath(shape)
+        context.setStrokeColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.16))
+        context.setLineWidth(k)
+        context.strokePath()
+        for (index, color) in [(0, CGColor(red: 1, green: 0.37, blue: 0.34, alpha: 1)), (1, CGColor(red: 1, green: 0.74, blue: 0.18, alpha: 1)),
+                               (2, CGColor(red: 0.16, green: 0.78, blue: 0.25, alpha: 1))] {
+            context.setFillColor(color)
+            context.fillEllipse(in: CGRect(x: box.minX + (10 + 17 * Double(index)) * k, y: box.maxY - 19 * k, width: 11 * k, height: 11 * k))
+        }
+        context.interpolationQuality = .high
+        context.draw(panelImage, in: CGRect(x: box.minX, y: box.minY, width: panelW, height: panelH))
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        let titleText = NSAttributedString(string: "Token Bonfire", attributes: [
+            .font: NSFont.systemFont(ofSize: 12 * k, weight: .semibold), .foregroundColor: NSColor(white: 1, alpha: 0.55)])
+        titleText.draw(at: NSPoint(x: box.midX - titleText.size().width / 2, y: box.maxY - bar + (bar - titleText.size().height) / 2))
+        NSGraphicsContext.restoreGraphicsState()
+        guard let shot = context.makeImage(),
+              let destination = CGImageDestinationCreateWithURL(URL(fileURLWithPath: output) as CFURL, UTType.png.identifier as CFString, 1, nil) else { exit(1) }
+        CGImageDestinationAddImage(destination, shot, nil)
+        guard CGImageDestinationFinalize(destination) else { exit(1) }
+        print("shot \(width)x\(height)")
+        exit(0)
+    }
     guard let data = bitmap.representation(using: .png, properties: [:]) else { exit(1) }
     try data.write(to: URL(fileURLWithPath: output))
     print("panel \(Int(view.bounds.width))x\(Int(view.bounds.height))")

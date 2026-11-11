@@ -70,7 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             guard let self else { return }
             self.keepOnScreen()
             self.savePosition()
-            if self.controls?.isVisible == true { self.controls?.show(beside: self.panel.frame) }
+            if self.controls?.isVisible == true { self.controls?.show(beside: self.fireRect) }
         }
         view.isOpaqueAt = { [weak self] x, y in self?.renderer.isOpaque(x: x, y: y) ?? false }
         panel = BonfirePanel(contentRect: NSRect(origin: initialOrigin(), size: size),
@@ -200,6 +200,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
     // MARK: 불 옆 설정 창
 
+    /// 창 전체가 아니라 불과 장작이 실제로 그려지는 자리. 설정 창을 여기에 바짝 붙인다.
+    private var fireRect: NSRect {
+        let frame = panel.frame, half = 40 * scale
+        return NSRect(x: frame.midX - half, y: frame.minY + 8 * scale, width: half * 2, height: frame.height - 8 * scale)
+    }
     private func toggleControls() {
         if let controls, controls.isVisible { controls.orderOut(nil); return }
         if controls == nil {
@@ -215,7 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             controls = window
         }
         refreshControls(force: true)
-        controls?.show(beside: panel.frame)
+        controls?.show(beside: fireRect)
     }
     private func refreshControls(force: Bool = false) {
         guard let controls, force || controls.isVisible else { return }
@@ -433,7 +438,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         panel.setFrame(NSRect(x: old.midX - size.width / 2, y: old.minY, width: size.width, height: size.height), display: true)
         keepOnScreen()
         savePosition()
-        if controls?.isVisible == true { controls?.show(beside: panel.frame) }
+        if controls?.isVisible == true { controls?.show(beside: fireRect) }
         refreshControls()
     }
     @objc private func toggleSource(_ item: NSMenuItem) {
