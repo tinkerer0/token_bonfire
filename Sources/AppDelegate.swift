@@ -211,7 +211,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             window.onScale = { [weak self] value in self?.setScale(value) }
             window.onColor = { [weak self] color in self?.setColor(color) }
             window.onNumber = { [weak self] on in if self?.showNumber != on { self?.toggleNumber() } }
-            window.onPreview = { [weak self] tier in self?.preview = tier; self?.refreshControls() }
             window.onLogin = { [weak self] in self?.toggleLoginItem(); self?.refreshControls() }
             controls = window
         }
@@ -220,19 +219,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
     private func refreshControls(force: Bool = false) {
         guard let controls, force || controls.isVisible else { return }
-        let tier = preview ?? model.tier
-        var parts = ["불 단계 \(BurnModel.tierNames[tier])" + (preview == nil ? "" : " (미리보기)")]
-        if model.rate > 0 { parts.append("분당 약 \(BurnModel.format(model.rate * 60))") }
-        if let remainingText { parts.append("초기화까지 \(remainingText)") }
         var state = ControlPanel.State()
         state.count = goal?.text(shown: model.shown) ?? BurnModel.format(model.shown)
-        state.status = parts.joined(separator: " · ")
+        state.remaining = remainingText
         state.goal = goal
         state.sources = sources
         state.scale = scale
         state.color = fireColor
         state.showNumber = showNumber
-        state.preview = preview
         state.login = SMAppService.mainApp.status == .enabled
         controls.update(state)
     }

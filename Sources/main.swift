@@ -175,7 +175,7 @@ if arguments.contains("--scan") {
     var state = ControlPanel.State()
     state.goal = BurnGoal(target: 5_000_000, hours: 24)
     state.count = state.goal!.text(shown: 1_234_567)
-    state.status = "불 단계 강 · 분당 약 35.9K · 초기화까지 3시간 12분"
+    state.remaining = "3시간 12분"
     state.sources = Set(UsageSource.allCases)
     window.update(state)
     if arguments.contains("--open") { window.expandSettings() }
