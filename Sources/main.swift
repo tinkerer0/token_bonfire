@@ -25,8 +25,8 @@ if arguments.contains("--scan") {
     }
     let report: [String: Any] = [
         "seconds": seconds, "trackedFiles": tailer.trackedFiles,
-        "claude": ["fresh": totals[.claude]?.fresh ?? 0, "cacheRead": totals[.claude]?.cacheRead ?? 0],
-        "codex": ["fresh": totals[.codex]?.fresh ?? 0, "cacheRead": totals[.codex]?.cacheRead ?? 0],
+        "claude": ["fresh": totals[.claude]?.fresh ?? 0, "cached": totals[.claude]?.cached ?? 0],
+        "codex": ["fresh": totals[.codex]?.fresh ?? 0, "cached": totals[.codex]?.cached ?? 0],
     ]
     let data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
     print(String(decoding: data, as: UTF8.self))
@@ -67,7 +67,7 @@ if arguments.contains("--scan") {
     guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                   space: Art.space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { exit(1) }
     context.interpolationQuality = .none
-    let burnPerSecond: [Double] = [0, 150, 500, 1400, 4000]
+    let burnPerSecond: [Double] = [0, 60, 250, 700, 2000]
     var shown = 0.0, index = 0
     for tier in 0..<BurnModel.tierNames.count {
         for _ in 0..<Int(perTier * Art.fps) {

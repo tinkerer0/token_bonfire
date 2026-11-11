@@ -199,6 +199,6 @@
  "counter": {
   "start": "앱을 켠 순간 0부터",
   "resetButton": true,
-  "counts": "입력 + 캐시 쓰기 + 출력 (캐시 읽기 제외)"
+  "counts": "입력 + 출력 (캐시 쓰기·읽기 제외)"
  }
 }

@@ -1,12 +1,12 @@
 import Foundation
 
-/// 새로 쓴 토큰 수. fresh = 입력 + 캐시 쓰기 + 출력(앱이 세는 양), cacheRead = 캐시에서 다시 읽은 입력(세지 않고 --scan 출력에만 쓴다).
+/// 새로 쓴 토큰 수. fresh = 입력 + 출력(앱이 세는 양), cached = 캐시에 쓰거나 캐시에서 읽은 입력(세지 않고 --scan 출력에만 쓴다).
 struct UsageDelta: Equatable {
     var fresh = 0
-    var cacheRead = 0
+    var cached = 0
     static let zero = UsageDelta()
     static func + (a: UsageDelta, b: UsageDelta) -> UsageDelta {
-        UsageDelta(fresh: a.fresh + b.fresh, cacheRead: a.cacheRead + b.cacheRead)
+        UsageDelta(fresh: a.fresh + b.fresh, cached: a.cached + b.cached)
     }
 }
 
@@ -47,12 +47,12 @@ struct ClaudeUsageParser {
               let time = stamp(object), time >= notBefore else { return .zero }
         let key = (message["id"] as? String) ?? (object["uuid"] as? String) ?? UUID().uuidString
         let now = UsageDelta(
-            fresh: number(usage["input_tokens"]) + number(usage["cache_creation_input_tokens"]) + number(usage["output_tokens"]),
-            cacheRead: number(usage["cache_read_input_tokens"]))
+            fresh: number(usage["input_tokens"]) + number(usage["output_tokens"]),
+            cached: number(usage["cache_creation_input_tokens"]) + number(usage["cache_read_input_tokens"]))
         let old = counted[key]
         let before = old ?? .zero
-        let delta = UsageDelta(fresh: max(0, now.fresh - before.fresh), cacheRead: max(0, now.cacheRead - before.cacheRead))
-        counted[key] = UsageDelta(fresh: max(now.fresh, before.fresh), cacheRead: max(now.cacheRead, before.cacheRead))
+        let delta = UsageDelta(fresh: max(0, now.fresh - before.fresh), cached: max(0, now.cached - before.cached))
+        counted[key] = UsageDelta(fresh: max(now.fresh, before.fresh), cached: max(now.cached, before.cached))
         if old == nil {
             order.append(key)
             if order.count > capacity {
@@ -80,7 +80,7 @@ struct CodexUsageParser {
         defer { previous = current }
         let delta: UsageDelta
         if let previous {
-            delta = UsageDelta(fresh: max(0, current.fresh - previous.fresh), cacheRead: max(0, current.cacheRead - previous.cacheRead))
+            delta = UsageDelta(fresh: max(0, current.fresh - previous.fresh), cached: max(0, current.cached - previous.cached))
         } else {
             delta = (info["last_token_usage"] as? [String: Any]).map(Self.usage) ?? .zero
         }
@@ -90,7 +90,7 @@ struct CodexUsageParser {
 
     private static func usage(_ values: [String: Any]) -> UsageDelta {
         let input = number(values["input_tokens"]), cached = number(values["cached_input_tokens"])
-        return UsageDelta(fresh: max(0, input - cached) + number(values["output_tokens"]), cacheRead: cached)
+        return UsageDelta(fresh: max(0, input - cached) + number(values["output_tokens"]), cached: cached)
     }
 }
 

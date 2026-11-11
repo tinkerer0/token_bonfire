@@ -5,10 +5,10 @@ struct BurnModel {
     static let tierNames = ["대기", "약", "중", "강", "폭주"]
     /// 한 번에 들어온 양이 대략 이 시간에 걸쳐 탄다.
     static let drainSeconds = 15.0
-    /// 단계가 시작되는 속도(초당 토큰). 분당 1.5만·5만·12만.
-    static let tierRates: [Double] = [0, 0, 250, 833, 2000]
+    /// 단계가 시작되는 속도(초당 토큰). 분당 8천·2.5만·7만.
+    static let tierRates: [Double] = [0, 0, 8000.0 / 60, 25000.0 / 60, 70000.0 / 60]
     /// 남은 양이 적을 때의 최소 속도. 끝자락이 한없이 늘어지지 않게 한다.
-    static let floorRate = 30.0
+    static let floorRate = 15.0
 
     private(set) var pending = 0.0
     /// 화면 숫자. 동전이 불에 들어갈 때 오른다.

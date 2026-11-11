@@ -23,9 +23,9 @@ do {
     let a = parser.parse(line: claudeLine(id: "m1", time: "2026-11-11T08:00:01.000Z", input: 2, create: 100, read: 5000, output: 10), notBefore: start)
     let b = parser.parse(line: claudeLine(id: "m1", time: "2026-11-11T08:00:02.000Z", input: 2, create: 100, read: 5000, output: 10), notBefore: start)
     let c = parser.parse(line: claudeLine(id: "m1", time: "2026-11-11T08:00:03.000Z", input: 2, create: 100, read: 5000, output: 250), notBefore: start)
-    check(a == UsageDelta(fresh: 112, cacheRead: 5000), "claude 첫 줄 \(a)")
+    check(a == UsageDelta(fresh: 12, cached: 5100), "claude 첫 줄(캐시 쓰기·읽기는 세지 않는 쪽) \(a)")
     check(b == .zero, "claude 반복 줄은 0이어야 함 \(b)")
-    check(c == UsageDelta(fresh: 240, cacheRead: 0), "claude 늘어난 출력만 \(c)")
+    check(c == UsageDelta(fresh: 240, cached: 0), "claude 늘어난 출력만 \(c)")
     let old = parser.parse(line: claudeLine(id: "m0", time: "2026-11-11T07:59:59.000Z", input: 9, create: 9, read: 9, output: 9), notBefore: start)
     check(old == .zero, "시작 전 기록은 0이어야 함")
     check(parser.parse(line: data(#"{"type":"user","timestamp":"2026-11-11T08:00:05.000Z","message":{"content":"\"usage\" 라는 글자"}}"#), notBefore: start) == .zero, "usage 없는 줄")
@@ -41,9 +41,9 @@ do {
     let a = parser.parse(line: codexLine(time: "2026-11-11T08:00:01Z", total: (9000, 8000, 500), last: (1000, 900, 50)), notBefore: start)
     let b = parser.parse(line: codexLine(time: "2026-11-11T08:00:02Z", total: (9000, 8000, 500), last: (1000, 900, 50)), notBefore: start)
     let c = parser.parse(line: codexLine(time: "2026-11-11T08:00:09Z", total: (10200, 9100, 530), last: (1200, 1100, 30)), notBefore: start)
-    check(a == UsageDelta(fresh: 150, cacheRead: 900), "codex 첫 이벤트는 요청별 값 \(a)")
+    check(a == UsageDelta(fresh: 150, cached: 900), "codex 첫 이벤트는 요청별 값 \(a)")
     check(b == .zero, "codex 같은 누적값 \(b)")
-    check(c == UsageDelta(fresh: 130, cacheRead: 1100), "codex 누적 차이 \(c)")
+    check(c == UsageDelta(fresh: 130, cached: 1100), "codex 누적 차이 \(c)")
     check(parser.parse(line: data(#"{"timestamp":"2026-11-11T08:00:10Z","type":"event_msg","payload":{"type":"token_count","info":null}}"#), notBefore: start) == .zero, "info 없는 이벤트")
 }
 
@@ -76,11 +76,11 @@ do {
     try append(session, full + partial.prefix(40))
     now += 7
     var result = tailer.poll(now: now)
-    check(result[.claude] == UsageDelta(fresh: 100, cacheRead: 3000), "다 쓰인 줄만 세야 함 \(String(describing: result[.claude]))")
+    check(result[.claude] == UsageDelta(fresh: 80, cached: 3020), "다 쓰인 줄만 세야 함 \(String(describing: result[.claude]))")
     try append(session, partial.dropFirst(40) + newline)
     now += 2
     result = tailer.poll(now: now)
-    check(result[.claude] == UsageDelta(fresh: 10, cacheRead: 100), "나머지가 쓰인 뒤 셈(자주 읽는 파일 경로) \(String(describing: result[.claude]))")
+    check(result[.claude] == UsageDelta(fresh: 10, cached: 100), "나머지가 쓰인 뒤 셈(자주 읽는 파일 경로) \(String(describing: result[.claude]))")
 
     // 시작 뒤에 생긴 파일: 서브에이전트 기록과 Codex 세션, 그리고 옛 시각만 든 파일
     try append(project.appendingPathComponent("s1/subagents/agent-a.jsonl"), claudeLine(id: "sub1", time: "2026-11-11T08:01:20.000Z", input: 0, create: 0, read: 0, output: 40) + newline)
@@ -89,8 +89,8 @@ do {
     try append(codexDay.appendingPathComponent("rollout.jsonl"), codexLine(time: "2026-11-11T08:01:21Z", total: (700, 600, 30), last: (700, 600, 30)) + newline)
     now += 7
     result = tailer.poll(now: now)
-    check(result[.claude] == UsageDelta(fresh: 40, cacheRead: 0), "서브에이전트만 세고 tool-results·옛 기록은 빼야 함 \(String(describing: result[.claude]))")
-    check(result[.codex] == UsageDelta(fresh: 130, cacheRead: 600), "새 Codex 파일 \(String(describing: result[.codex]))")
+    check(result[.claude] == UsageDelta(fresh: 40, cached: 0), "서브에이전트만 세고 tool-results·옛 기록은 빼야 함 \(String(describing: result[.claude]))")
+    check(result[.codex] == UsageDelta(fresh: 130, cached: 600), "새 Codex 파일 \(String(describing: result[.codex]))")
 
     // 초기화: 그 시각 뒤 기록만 센다
     tailer.notBefore = UsageTime.parse("2026-11-11T08:05:00.000Z")!
@@ -98,7 +98,7 @@ do {
         + claudeLine(id: "m5", time: "2026-11-11T08:05:01.000Z", input: 0, create: 0, read: 0, output: 22) + newline)
     now += 2
     result = tailer.poll(now: now)
-    check(result[.claude] == UsageDelta(fresh: 22, cacheRead: 0), "초기화 뒤 기록만 \(String(describing: result[.claude]))")
+    check(result[.claude] == UsageDelta(fresh: 22, cached: 0), "초기화 뒤 기록만 \(String(describing: result[.claude]))")
 } catch {
     check(false, "파일 시험 준비 실패: \(error)")
 }
@@ -107,13 +107,13 @@ do {
 do {
     var model = BurnModel()
     check(model.tier == 0 && model.rate == 0, "빈 상태는 대기")
-    model.add(3000)
-    check(model.tier == 1, "3천 토큰은 약 단계, 실제 \(model.tier)")
+    model.add(1500)
+    check(model.tier == 1, "1500 토큰은 약 단계, 실제 \(model.tier)")
     model.add(60_000)
     check(model.tier == 4, "6만 토큰이 한꺼번에 오면 폭주, 실제 \(model.tier)")
     var out = 0.0, steps = 0
     while model.pending > 0 && steps < 100_000 { out += model.drain(1.0 / 30); steps += 1 }
-    check(abs(out - 63_000) < 1e-6, "풀려 나간 합 \(out)")
+    check(abs(out - 61_500) < 1e-6, "풀려 나간 합 \(out)")
     check(Double(steps) / 30 < 120, "2분 안에 다 타야 함, 실제 \(Double(steps) / 30)초")
 }
 
