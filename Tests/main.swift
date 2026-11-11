@@ -168,8 +168,8 @@ if CommandLine.arguments.count > 1 {
 
 // 목표
 do {
-    check(BurnGoal(target: 500, daily: true) == nil, "1K 미만 목표는 거절")
-    let goal = BurnGoal(target: 5_000_000, daily: true)!
+    check(BurnGoal(target: 500, hours: 24) == nil, "1K 미만 목표는 거절")
+    let goal = BurnGoal(target: 5_000_000, hours: 5)!
     check(goal.text(shown: 1_234_567) == "1.2M/5M", "목표 표기 \(goal.text(shown: 1_234_567))")
     check(!goal.reached(4_999_999) && goal.reached(5_000_000), "목표 도달 판정")
     for (value, text) in [(2_300_000.0, "2.3M"), (800_000, "800K"), (999_960, "1M"), (1_500_000_000, "1.5B"), (1000, "1K")] {
@@ -178,9 +178,12 @@ do {
     let parts = BurnGoal.split(2_500_000)
     check(parts.number == 2.5 && parts.unit == 1, "입력 칸 되채우기 \(parts)")
     check(BurnGoal.share(of: 5_000_000) == "Claude Code 주간 한도의 약 14% · Codex 약 16%", BurnGoal.share(of: 5_000_000))
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
-    check(BurnGoal.dayKey(Date(timeIntervalSince1970: 1_794_409_200), calendar: calendar) == "2026-11-12", "날짜 열쇠")
+    let start = Date(timeIntervalSince1970: 1_794_409_200)
+    check(!goal.expired(start: start, now: start.addingTimeInterval(5 * 3600 - 1)), "정한 시간 전에는 이어 셈")
+    check(goal.expired(start: start, now: start.addingTimeInterval(5 * 3600)), "정한 시간이 지나면 다시 셈")
+    check(goal.expired(start: start, now: start.addingTimeInterval(-60)), "시계가 뒤로 가면 다시 셈")
+    check(!BurnGoal(target: 5_000_000, hours: nil)!.expired(start: start, now: start.addingTimeInterval(1e7)), "시간을 안 정하면 계속 셈")
+    check(BurnGoal(target: 5_000_000, hours: 0.5) == nil && BurnGoal(target: 5_000_000, hours: 200) == nil, "시간 범위 밖은 거절")
     if let atlas = try? AtlasStore(resources: URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "Resources")) {
         check("0123456789.KMBT/".allSatisfy { atlas.glyph($0) != nil && atlas.glyph($0, gold: true) != nil }, "빗금·금색 글자")
     } else { check(false, "글자 시트를 열지 못함") }

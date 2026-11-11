@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     private var goalReached = false
     private var goalReachedAt: Double?
     private var savedCount = -1.0
-    private var day = BurnGoal.dayKey()
+    private var goalStart = Date()
     private static let blinkSeconds = 6.0
     private var observers: [NSObjectProtocol] = []
     private let defaults = UserDefaults.standard
@@ -101,17 +101,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         if Self.scaleRange.contains(saved) { scale = saved }
         if let names = defaults.stringArray(forKey: "sources") { sources = Set(names.compactMap(UsageSource.init(rawValue:))) }
         if defaults.object(forKey: "showNumber") != nil { showNumber = defaults.bool(forKey: "showNumber") }
-        let daily = defaults.object(forKey: "goalDaily") == nil ? true : defaults.bool(forKey: "goalDaily")
-        goal = BurnGoal(target: defaults.double(forKey: "goalTokens"), daily: daily)
+        var hours: Double? = BurnGoal.suggestedHours
+        if defaults.object(forKey: "goalHours") != nil {
+            let saved = defaults.double(forKey: "goalHours")
+            hours = saved > 0 ? saved : nil
+        } else if defaults.object(forKey: "goalDaily") != nil, !defaults.bool(forKey: "goalDaily") {
+            hours = nil
+        }
+        goal = BurnGoal(target: defaults.double(forKey: "goalTokens"), hours: hours)
     }
 
     // MARK: 목표
 
-    /// 목표가 켜져 있으면 앱을 껐다 켜도 같은 날의 숫자를 이어 간다(꺼져 있던 동안 쓴 양은 빠진다).
+    /// 목표가 켜져 있으면 앱을 껐다 켜도 정한 시간 안에서는 숫자를 이어 간다(꺼져 있던 동안 쓴 양은 빠진다).
     private func restoreGoalCount() {
         guard let goal else { return }
+        let start = defaults.double(forKey: "goalStart")
         let saved = defaults.double(forKey: "goalCount")
-        if saved > 0, !goal.daily || defaults.string(forKey: "goalDay") == day { model.shown = saved }
+        if start > 0, !goal.expired(start: Date(timeIntervalSince1970: start)) {
+            goalStart = Date(timeIntervalSince1970: start)
+            if saved > 0 { model.shown = saved }
+        } else {
+            goalStart = Date()
+            defaults.set(goalStart.timeIntervalSince1970, forKey: "goalStart")
+        }
         goalReached = goal.reached(model.shown)
     }
     private func saveGoalCount() {
@@ -120,14 +133,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         guard count != savedCount else { return }
         savedCount = count
         defaults.set(count, forKey: "goalCount")
-        defaults.set(day, forKey: "goalDay")
     }
-    /// 날짜가 바뀌었으면 0부터 다시 센다.
-    private func checkDay() {
-        let today = BurnGoal.dayKey()
-        guard today != day else { return }
-        day = today
-        if goal?.daily == true { resetCount() }
+    /// 정한 시간이 다 지났으면 0부터 다시 센다.
+    private func checkPeriod() {
+        if goal?.expired(start: goalStart) == true { resetCount() }
+    }
+    /// "3시간 12분 남음". 시간을 정하지 않았으면 nil.
+    private var remainingText: String? {
+        guard let hours = goal?.hours else { return nil }
+        let minutes = max(0, Int((hours * 3600 - Date().timeIntervalSince(goalStart)) / 60))
+        return minutes >= 60 ? "\(minutes / 60)시간 \(minutes % 60)분 남음" : "\(minutes)분 남음"
     }
     private func checkGoal() {
         guard let goal, !goalReached, goal.reached(model.shown) else { return }
@@ -135,9 +150,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         goalReachedAt = ProcessInfo.processInfo.systemUptime
         let content = UNMutableNotificationContent()
         content.title = "목표 \(BurnGoal.compact(goal.target)) 토큰을 다 썼어요"
-        content.body = goal.daily ? "오늘 정한 양을 채웠습니다." : "정한 양을 채웠습니다."
+        content.body = "정한 양을 채웠습니다."
         content.sound = .default
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "goal", content: content, trigger: nil))
+        // 알림 권한이 꺼져 있어도 알 수 있게 소리를 낸다.
+        NSSound(named: "Glass")?.play()
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
@@ -158,7 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         goal = next
         defaults.set(next?.target ?? 0, forKey: "goalTokens")
         if let next {
-            defaults.set(next.daily, forKey: "goalDaily")
+            defaults.set(next.hours ?? 0, forKey: "goalHours")
             UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
             // 목표를 새로 켜면 0부터 센다. 켜 둔 채 양만 바꾸면 이어 센다.
             if wasOff { resetCount() } else { goalReached = next.reached(model.shown); goalReachedAt = nil }
@@ -174,7 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     // MARK: 집계
 
     private func poll() {
-        checkDay()
+        checkPeriod()
         saveGoalCount()
         guard !polling else { return }
         polling = true
@@ -215,13 +232,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         let dt = min(0.1, max(0, now - lastTick))
         lastTick = now
         let released = model.drain(dt)
-        model.shown += renderer.step(dt: dt, tier: preview ?? model.tier, released: released)
-        updateStatus()
-        // 목표를 채운 직후 몇 초는 숫자가 깜빡인다.
-        var hidden = false
+        // 목표를 채운 직후 몇 초는 불이 가장 크게 타고 숫자가 깜빡인다.
+        var hidden = false, flare: Int?
         if let at = goalReachedAt {
-            if now - at < Self.blinkSeconds { hidden = Int((now - at) * 4) % 2 == 1 } else { goalReachedAt = nil }
+            if now - at < Self.blinkSeconds { hidden = Int((now - at) * 4) % 2 == 1; flare = 4 } else { goalReachedAt = nil }
         }
+        model.shown += renderer.step(dt: dt, tier: preview ?? flare ?? model.tier, released: released)
+        updateStatus()
         view.show(renderer.image(number: hidden ? "" : shownText, gold: goalReached))
     }
 
@@ -261,30 +278,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             item.submenu = sub
             menu.addItem(item)
         }
+        func section(_ title: String) {
+            menu.addItem(.separator())
+            if #available(macOS 14.0, *) { menu.addItem(.sectionHeader(title: title)) } else { add(title, nil) }
+        }
         let tier = preview ?? model.tier
         let total = BurnModel.format(model.shown + model.pending + renderer.tokensInFlight)
-        let against = goal.map { " / " + BurnGoal.compact($0.target) + (goalReached ? " 다 씀" : "") } ?? ""
-        add("태운 토큰 \(total)\(against) · \(BurnModel.tierNames[tier])" + (preview == nil ? "" : " (미리보기)"), nil)
-        if model.rate > 0 { add("지금 분당 약 \(BurnModel.format(model.rate * 60))", nil) }
-        menu.addItem(.separator())
-        add("초기화", #selector(resetCount))
-        add("목표…", #selector(showGoal), on: goal != nil)
-        menu.addItem(sizeItem())
-        submenu("집계 대상") { sub in
+        let against = goal.map { " / " + BurnGoal.compact($0.target) + (goalReached ? " (다 씀)" : "") } ?? ""
+        add("태운 토큰 \(total)\(against)", nil)
+        var state = "불 세기 \(BurnModel.tierNames[tier])" + (preview == nil ? "" : " (미리보기)")
+        if model.rate > 0 { state += " · 분당 약 \(BurnModel.format(model.rate * 60))" }
+        add(state, nil)
+        if let remainingText { add("\(remainingText), 그 뒤 0부터", nil) }
+
+        section("집계")
+        if let goal {
+            let period = goal.hours.map { " · \(BurnGoal.hoursText($0))시간마다" } ?? ""
+            add("목표 \(BurnGoal.compact(goal.target))\(period)…", #selector(showGoal))
+        } else {
+            add("목표 정하기…", #selector(showGoal))
+        }
+        add("지금 0부터 다시 세기", #selector(resetCount))
+        let counted = UsageSource.allCases.filter { sources.contains($0) }.map(\.title).joined(separator: " · ")
+        submenu("세는 대상: " + (counted.isEmpty ? "없음" : counted)) { sub in
             for (index, source) in UsageSource.allCases.enumerated() {
                 add(source.title, #selector(toggleSource(_:)), to: sub, on: sources.contains(source), tag: index)
             }
         }
-        add("불 기준…", #selector(showThresholds))
-        add("숫자 표시", #selector(toggleNumber), on: showNumber)
-        add("로그인 시 실행", #selector(toggleLoginItem), on: SMAppService.mainApp.status == .enabled)
-        submenu("미리보기") { sub in
+
+        section("모양")
+        menu.addItem(sizeItem())
+        add("숫자 보이기", #selector(toggleNumber), on: showNumber)
+        add("불 세기 기준…", #selector(showThresholds))
+        submenu("불 세기 미리보기") { sub in
             add("자동 · 실제 사용량", #selector(showPreview(_:)), to: sub, on: preview == nil, tag: -1)
             for (index, name) in BurnModel.tierNames.enumerated() {
                 add(name, #selector(showPreview(_:)), to: sub, on: preview == index, tag: index)
             }
         }
-        menu.addItem(.separator())
+
+        section("앱")
+        add("로그인할 때 자동 실행", #selector(toggleLoginItem), on: SMAppService.mainApp.status == .enabled)
         let quit = NSMenuItem(title: "Token Bonfire 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
         menu.addItem(quit)
@@ -298,6 +332,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         queue.async { [tailer] in tailer.notBefore = now }
         goalReached = false
         goalReachedAt = nil
+        goalStart = Date()
+        if goal != nil { defaults.set(goalStart.timeIntervalSince1970, forKey: "goalStart") }
         saveGoalCount()
         updateStatus()
     }
@@ -306,7 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         let box = NSView(frame: NSRect(x: 0, y: 0, width: 230, height: 30))
         let label = NSTextField(labelWithString: "크기")
         label.font = .menuFont(ofSize: 0)
-        label.frame = NSRect(x: 14, y: 6, width: 36, height: 18)
+        label.frame = NSRect(x: 21, y: 6, width: 36, height: 18)
         let steps = Int(((Self.scaleRange.upperBound - Self.scaleRange.lowerBound) / Self.scaleStep).rounded()) + 1
         let slider = NSSlider(value: scale, minValue: Self.scaleRange.lowerBound, maxValue: Self.scaleRange.upperBound,
                               target: self, action: #selector(resize(_:)))
@@ -314,7 +350,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         slider.allowsTickMarkValuesOnly = true
         slider.isContinuous = true
         slider.controlSize = .small
-        slider.frame = NSRect(x: 54, y: 4, width: 162, height: 22)
+        slider.frame = NSRect(x: 60, y: 4, width: 156, height: 22)
         slider.setAccessibilityLabel("크기")
         box.addSubview(label)
         box.addSubview(slider)

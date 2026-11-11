@@ -81,14 +81,26 @@ struct BurnGoal: Equatable {
     /// 주간 어림을 7로 나눈 하루 몫에 가까운 값.
     static let suggested = 5e6
 
-    let target: Double
-    /// 날짜가 바뀌면 0부터 다시 센다.
-    let daily: Bool
+    static let hoursRange = 1.0...168.0
+    static let suggestedHours = 24.0
 
-    init?(target: Double, daily: Bool) {
+    let target: Double
+    /// 이 시간이 지날 때마다 0부터 다시 센다. nil이면 자동으로 되돌리지 않는다.
+    let hours: Double?
+
+    init?(target: Double, hours: Double?) {
         guard Self.range.contains(target) else { return nil }
+        if let hours, !Self.hoursRange.contains(hours) { return nil }
         self.target = target
-        self.daily = daily
+        self.hours = hours
+    }
+    /// 24 → "24", 1.5 → "1.5"
+    static func hoursText(_ hours: Double) -> String { hours == hours.rounded() ? String(Int(hours)) : String(hours) }
+    /// 시작 시각에서 정한 시간이 다 지났는지.
+    func expired(start: Date, now: Date = Date()) -> Bool {
+        guard let hours else { return false }
+        let passed = now.timeIntervalSince(start)
+        return passed >= hours * 3600 || passed < 0
     }
     func reached(_ shown: Double) -> Bool { shown >= target }
     func text(shown: Double) -> String { BurnModel.format(shown) + "/" + Self.compact(target) }
@@ -114,9 +126,5 @@ struct BurnGoal: Equatable {
             let text = percent >= 10 ? String(Int(percent.rounded())) : String(format: "%.1f", percent)
             return index == 0 ? "\(entry.source.title) 주간 한도의 약 \(text)%" : "\(entry.source.title) 약 \(text)%"
         }.joined(separator: " · ")
-    }
-    static func dayKey(_ date: Date = Date(), calendar: Calendar = .current) -> String {
-        let parts = calendar.dateComponents([.year, .month, .day], from: date)
-        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 }

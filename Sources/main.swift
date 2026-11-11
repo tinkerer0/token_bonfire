@@ -46,7 +46,7 @@ if arguments.contains("--scan") {
         elapsed += dt
     }
     // --goal N: 숫자를 현재/목표로 그린다.
-    let goal = BurnGoal(target: Double(value(after: "--goal") ?? "") ?? 0, daily: true)
+    let goal = BurnGoal(target: Double(value(after: "--goal") ?? "") ?? 0, hours: nil)
     guard let image = renderer.image(number: goal?.text(shown: model.shown) ?? BurnModel.format(model.shown),
                                      gold: goal?.reached(model.shown) ?? false),
           let context = CGContext(data: nil, width: Art.width * 2, height: Art.height * 2, bitsPerComponent: 8, bytesPerRow: 0,

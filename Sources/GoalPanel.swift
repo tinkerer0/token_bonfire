@@ -6,7 +6,8 @@ final class GoalPanel: NSPanel, NSTextFieldDelegate {
     var onApply: ((BurnGoal?) -> Void)?
     private let field = NSTextField(string: "")
     private let units = NSPopUpButton(frame: .zero, pullsDown: false)
-    private let daily = NSButton(checkboxWithTitle: "날짜가 바뀌면 0부터 다시 세기", target: nil, action: nil)
+    private let timed = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let hours = NSTextField(string: "")
     private let share = NSTextField(wrappingLabelWithString: "")
     private let message = NSTextField(wrappingLabelWithString: "")
     private let off = NSButton(title: "목표 끄기", target: nil, action: nil)
@@ -43,7 +44,14 @@ final class GoalPanel: NSPanel, NSTextFieldDelegate {
             label.widthAnchor.constraint(equalToConstant: 320).isActive = true
         }
         stack.addArrangedSubview(share)
-        stack.addArrangedSubview(daily)
+        hours.alignment = .right
+        hours.setAccessibilityLabel("다시 세는 시간")
+        hours.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        timed.setAccessibilityLabel("정한 시간마다 0부터 다시 세기")
+        let period = NSStackView(views: [timed, hours, NSTextField(labelWithString: "시간마다 0부터 다시 세기")])
+        period.alignment = .centerY
+        period.spacing = 6
+        stack.addArrangedSubview(period)
         stack.addArrangedSubview(message)
         let apply = NSButton(title: "적용", target: self, action: #selector(applySettings))
         apply.bezelStyle = .rounded
@@ -67,13 +75,14 @@ final class GoalPanel: NSPanel, NSTextFieldDelegate {
 
     override var canBecomeKey: Bool { true }
 
-    private static let hint = "숫자 칸이 현재/목표로 바뀌어요. 다 채우면 숫자가 금색이 되고 알림이 한 번 와요."
+    private static let hint = "숫자 칸이 현재/목표로 바뀌어요. 다 채우면 불이 크게 타오르고 숫자가 금색이 되며 소리와 알림이 한 번 와요."
 
     func configure(_ goal: BurnGoal?) {
         let parts = BurnGoal.split(goal?.target ?? BurnGoal.suggested)
         field.stringValue = parts.number == parts.number.rounded() ? String(Int(parts.number)) : String(parts.number)
         units.selectItem(at: parts.unit)
-        daily.state = (goal?.daily ?? true) ? .on : .off
+        timed.state = (goal == nil || goal?.hours != nil) ? .on : .off
+        hours.stringValue = BurnGoal.hoursText(goal?.hours ?? BurnGoal.suggestedHours)
         off.isEnabled = goal != nil
         message.stringValue = Self.hint
         changed()
@@ -89,7 +98,16 @@ final class GoalPanel: NSPanel, NSTextFieldDelegate {
     func controlTextDidChange(_ notification: Notification) { changed() }
     @objc private func applySettings() {
         makeFirstResponder(nil)
-        guard let target = entered, let goal = BurnGoal(target: target, daily: daily.state == .on) else {
+        var period: Double?
+        if timed.state == .on {
+            guard let value = Double(hours.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)),
+                  BurnGoal.hoursRange.contains(value) else {
+                message.stringValue = "시간은 1부터 168 사이로 입력해 주세요."
+                return
+            }
+            period = value
+        }
+        guard let target = entered, let goal = BurnGoal(target: target, hours: period) else {
             message.stringValue = "1K 이상의 수를 입력해 주세요."
             return
         }
